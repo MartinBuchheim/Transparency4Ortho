@@ -1,0 +1,24 @@
+plugins {
+    id 'application'
+}
+
+group 'de.melb00m'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+application {
+    mainClassName("de.melb00m.tr4o.app.TransparentRoads4OrthoApp")
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile group: 'commons-cli', name: 'commons-cli', version: '1.4'
+    compile group: 'com.google.guava', name: 'guava', version: '29.0-jre'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.13.2'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.13.2'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
