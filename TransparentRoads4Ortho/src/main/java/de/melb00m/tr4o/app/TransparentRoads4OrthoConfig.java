@@ -1,5 +1,6 @@
 package de.melb00m.tr4o.app;
 
+import de.melb00m.tr4o.util.FileUtils;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Optional;
 import java.util.Set;
@@ -26,7 +28,7 @@ public class TransparentRoads4OrthoConfig {
   static final String DEFAULT_LIBRARY_PREFIX = "transparentRoads4Ortho";
   static final Logger LOG = LogManager.getLogger(TransparentRoads4OrthoConfig.class);
 
-  private final DateFormat BACKUP_FOLDER_DATE = new SimpleDateFormat("yyyy-MM-dd hh-mm-ss");
+  private final DateFormat BACKUP_FOLDER_DATE = new SimpleDateFormat("yyyy-MM-dd HH-mm-ss");
   private final Path xPlanePath;
   private final Set<Path> tilesPath;
   private final Path overlaysPath;
@@ -93,7 +95,18 @@ public class TransparentRoads4OrthoConfig {
       if (tempDir.get() == null) {
         try {
           Files.createDirectories(tempDirPath);
-          tempDir.set(Files.createTempDirectory(tempDirPath,null));
+          final var tempDirectory = Files.createTempDirectory(tempDirPath, null);
+          tempDir.set(tempDirectory);
+          Runtime.getRuntime()
+              .addShutdownHook(
+                  new Thread(
+                      () -> {
+                        try {
+                          FileUtils.deleteRecursively(tempDirectory, Collections.emptySet());
+                        } catch (IOException e) {
+                          LOG.warn("Failed to delete temporary directory at: {}", tempDirectory);
+                        }
+                      }));
         } catch (IOException e) {
           throw new IllegalStateException(
               String.format("Failed to initialize temporary directory at: %s", tempDirPath), e);

@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
 
 /**
  * Main App class for TransparentRoads4Ortho.
- * <p/>
- * Contains the main-method that is called upon application startup, and
- * reads/validates the incoming run-arguments before transferring them
- * to a {@link TransparentRoads4OrthoConfig}-instance.
+ *
+ * <p>Contains the main-method that is called upon application startup, and reads/validates the
+ * incoming run-arguments before transferring them to a {@link
+ * TransparentRoads4OrthoConfig}-instance.
  *
  * @author martin.buchheim
  */
@@ -33,10 +33,6 @@ public class TransparentRoads4OrthoApp {
 
   public static void main(String[] args) {
     final var options = generateCliOptions();
-    if (args.length == 0) {
-      printHelp(options);
-      return;
-    }
     try {
       var line = new DefaultParser().parse(options, args);
       if (line.hasOption("h")) {
@@ -47,10 +43,11 @@ public class TransparentRoads4OrthoApp {
         // TODO: connect with release management
         throw new UnsupportedOperationException("Versioning currently not enabled");
       }
-      if (line.hasOption("v")) {
-        Configurator.setRootLevel(Level.DEBUG);
+      if (line.hasOption("d")) {
+        Configurator.setLevel("de.melb00m.tr4o", Level.DEBUG);
       }
-      if (line.hasOption("vv")) {
+      if (line.hasOption("dd")) {
+        Configurator.setLevel("de.melb00m.tr4o", Level.TRACE);
         Configurator.setRootLevel(Level.TRACE);
       }
 
@@ -58,14 +55,18 @@ public class TransparentRoads4OrthoApp {
       new RunProcessor(config).startProcessing();
 
     } catch (IllegalArgumentException | ParseException ex) {
-      LOG.warn(ex.getMessage());
+      LOG.error(ex.getMessage(), ex);
       LOG.info("Use --help to show usage information");
+      System.exit(1);
+    } catch (Exception ex) {
+      LOG.error(ex);
+      System.exit(1);
     }
   }
 
   private static TransparentRoads4OrthoConfig readAndVerifyArguments(CommandLine line) {
     final var args = line.getArgList();
-    Validate.isTrue(args.size() >= 3, "Expecting at least 3 paths with application call");
+    Validate.isTrue(args.size() >= 3, "Expecting at least 3 path-parameters with application call");
 
     final var xPlanePath = Paths.get(args.get(0));
     final var overlayPath = Paths.get(args.get(1));
@@ -76,15 +77,16 @@ public class TransparentRoads4OrthoApp {
     final var dsfToolExec = getOptionalPath(line, "dx");
 
     Validate.isTrue(
-        Files.isReadable(xPlanePath), "X-Plane location is not readable: %s", xPlanePath);
+        Files.isReadable(xPlanePath), "X-Plane location '%s' is not readable", xPlanePath);
     Validate.isTrue(
         Files.exists(overlayPath) && Files.exists(overlayPath.resolve("Earth nav data")),
-        "Overlay path does not contain an expected 'Earth nav data' folder: %s",
+        "Overlay path '%s' does not contain an expected 'Earth nav data' folder",
         overlayPath);
     tilesPath.forEach(
-        tile -> Validate.isTrue(Files.isReadable(tile), "Tile directory not readable: %s", tile));
+        tile ->
+            Validate.isTrue(Files.isReadable(tile), "Tile directory '%s' is not readable", tile));
     dsfToolExec.ifPresent(
-        dx -> Validate.isTrue(Files.isExecutable(dx), "DSFTool is not executable: %s", dx));
+        dx -> Validate.isTrue(Files.isExecutable(dx), "DSFTool at '%s' is not executable", dx));
 
     return new TransparentRoads4OrthoConfig(
         xPlanePath,
@@ -97,10 +99,9 @@ public class TransparentRoads4OrthoApp {
   }
 
   private static Optional<Path> getOptionalPath(CommandLine line, String config) {
-    if (line.hasOption(config)) {
-      return Optional.of(Paths.get(line.getOptionValue(config)));
-    }
-    return Optional.empty();
+    return line.hasOption(config)
+        ? Optional.of(Paths.get(line.getOptionValue(config)))
+        : Optional.empty();
   }
 
   private static void printHelp(Options options) {

@@ -1,26 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
-
     <Properties>
-        <Property name="filename">logs/TransparentRoads4Ortho-$${date:yyyy-MM-dd hh-mm-ss}.log</Property>
+        <Property name="filename">logs/TransparentRoads4Ortho-$${date:yyyy-MM-dd HH-mm-ss}.log</Property>
     </Properties>
-
     <Appenders>
         <Console name="LogToConsole" target="SYSTEM_OUT">
-            <PatternLayout pattern="%-5level %msg%n"/>
+            <PatternLayout pattern="%-5level %msg%n %throwable{none}"/>
         </Console>
         <File name="LogToFile" fileName="${filename}" >
             <PatternLayout>
-                <Pattern>%d %p %c{1.} [%t] %m%n</Pattern>
+                <Pattern>%d %p %c{1.} [%t] %m %throwable %n</Pattern>
             </PatternLayout>
         </File>
     </Appenders>
     <Loggers>
-        <Logger name="de.melb00m.tr4o" level="debug" additivity="true">
-            <AppenderRef ref="LogToFile"/>
-        </Logger>
-        <Root level="info">
+        <Logger name="de.melb00m.tr4o" level="info">
             <AppenderRef ref="LogToConsole"/>
+        </Logger>
+        <Root level="debug">
             <AppenderRef ref="LogToFile"/>
         </Root>
     </Loggers>

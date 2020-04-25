@@ -6,14 +6,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public class LibraryGenerator {
 
@@ -52,13 +51,14 @@ public class LibraryGenerator {
           generateLibraryTxt();
         }
       } catch (IOException e) {
-        throw new UndeclaredThrowableException(e);
+        throw new IllegalStateException(
+            String.format("There was a problem initializing the library at: %s", libraryFolder));
       }
     }
   }
 
   private void generateLibraryTxt() throws IOException {
-    var libraryTxt = libraryFolder.resolve(LIBRARY_TXT);
+    final var libraryTxt = libraryFolder.resolve(LIBRARY_TXT);
     LOG.info("Generating library at {}", libraryTxt);
     Validate.isTrue(
         Files.notExists(libraryTxt),
@@ -67,7 +67,8 @@ public class LibraryGenerator {
 
     // find our exported files in the folder
     final var filesToExport =
-        FileUtils.searchFileNamesRecursively(libraryResourcesFolder, exportedFiles);
+        FileUtils.searchFileNamesRecursively(
+            libraryResourcesFolder, exportedFiles, Collections.emptySet());
     exportedFiles.forEach(
         export -> {
           Validate.isTrue(
@@ -93,17 +94,15 @@ public class LibraryGenerator {
 
   private void copyLibraryFolder() throws IOException {
     LOG.info("Copying X-Plane default roads-library to {}", libraryFolder);
-    final var exclusions =
-        LIB_COPY_EXCLUSIONS.stream()
-            .map(xPlaneSourceLibraryFolder::resolve)
-            .collect(Collectors.toSet());
     Validate.isTrue(
         Files.exists(xPlaneSourceLibraryFolder),
         "Can't find X-Plane default roads-library at expected location: {}",
         xPlaneSourceLibraryFolder);
+    final var exclusions =
+        LIB_COPY_EXCLUSIONS.stream().map(xPlaneSourceLibraryFolder::resolve).toArray(Path[]::new);
     Files.createDirectories(libraryResourcesFolder);
     FileUtils.copyRecursively(
-        xPlaneSourceLibraryFolder, libraryResourcesFolder, exclusions.toArray(new Path[0]));
+        xPlaneSourceLibraryFolder, libraryResourcesFolder, Collections.emptySet(), exclusions);
   }
 
   private void validateExistingLibrary() throws IOException {
