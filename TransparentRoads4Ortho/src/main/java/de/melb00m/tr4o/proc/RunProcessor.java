@@ -1,15 +1,17 @@
 package de.melb00m.tr4o.proc;
 
-import com.google.common.collect.ImmutableSet;
 import de.melb00m.tr4o.app.TransparentRoads4OrthoConfig;
-import lombok.val;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.Set;
 
 public class RunProcessor {
 
+  private static final Logger LOG = LogManager.getLogger(RunProcessor.class);
   private static final String LIB_COPY_FROM = "Resources/default scenery/1000 roads";
   private static final String LIB_COPY_TO = "Resources/1000_roads";
-  private static final ImmutableSet<String> LIB_EXPORTED_FILES =
-      ImmutableSet.of("roads.net", "roads_EU.net");
+  private static final Set<String> LIB_EXPORTED_FILES = Set.of("roads.net", "roads_EU.net");
 
   private final TransparentRoads4OrthoConfig config;
 
@@ -19,17 +21,20 @@ public class RunProcessor {
 
   public void startProcessing() {
     synchronized (this) {
-      generateLibrary();
+      LOG.debug("Using configuration {}", config);
+      // generateLibrary();
+      new DSFToolInterface(config.getDsfToolPath(), true, config.getTempDir()).getDSFExecutable();
     }
   }
 
   private void generateLibrary() {
-      val generator = new LibraryGenerator(
-              config.getLibraryPrefix(),
-              config.getLibraryPath(),
-              config.getLibraryPath().resolve(LIB_COPY_TO),
-              config.getXPlanePath().resolve(LIB_COPY_FROM),
-              LIB_EXPORTED_FILES);
-      generator.validateOrCreateLibrary();
+    var generator =
+        new LibraryGenerator(
+            config.getLibraryPrefix(),
+            config.getLibraryPath(),
+            config.getLibraryPath().resolve(LIB_COPY_TO),
+            config.getXPlanePath().resolve(LIB_COPY_FROM),
+            LIB_EXPORTED_FILES);
+    generator.validateOrCreateLibrary();
   }
 }

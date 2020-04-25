@@ -16,8 +16,8 @@
         </File>
     </Appenders>
     <Loggers>
-        <Logger name="de.melb00m.tr4o" level="trace" additivity="false">
-            <AppenderRef ref="LogToConsole"/>
+        <Logger name="de.melb00m.tr4o" level="debug" additivity="true">
+            <AppenderRef ref="LogToFile"/>
         </Logger>
         <Root level="info">
             <AppenderRef ref="LogToConsole"/>
