@@ -2,6 +2,7 @@ package de.melb00m.tr4o.util;
 
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
+import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public class FileUtils {
@@ -114,6 +116,35 @@ public class FileUtils {
         var downloadTargetStream = new FileOutputStream(targetFile.toFile()).getChannel()) {
       LOG.trace("Downloading file from {} to {}...", sourceUrl, targetFile);
       downloadTargetStream.transferFrom(downloadStream, 0, Long.MAX_VALUE);
+    }
+  }
+
+  public static Path createAutoCleanedTempDir(final Path baseFolder, final Optional<String> prefix) {
+    try {
+      if (!Files.exists(baseFolder)) {
+        Files.createDirectories(baseFolder);
+      }
+      Validate.isTrue(
+          Files.isDirectory(baseFolder),
+          "Can't create temporary directory below '{}'. Path already exists and is not a directory",
+          baseFolder);
+
+      final var tempDir = Files.createTempDirectory(baseFolder, prefix.orElse(null));
+      Runtime.getRuntime()
+          .addShutdownHook(
+              new Thread(
+                  () -> {
+                    try {
+                      deleteRecursively(tempDir, Collections.emptySet());
+                    } catch (IOException e) {
+                      LOG.warn(
+                          "Failed to automatically cleanup temporary directory at {}", tempDir);
+                    }
+                  }));
+      return tempDir;
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Failed to create temporary directory at %s", baseFolder), e);
     }
   }
 }
