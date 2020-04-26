@@ -20,9 +20,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.zip.ZipInputStream;
 
-public class DSFToolInterface {
+public class XPToolsInterface {
 
-  private static final Logger LOG = LogManager.getLogger(DSFToolInterface.class);
+  private static final Logger LOG = LogManager.getLogger(XPToolsInterface.class);
   private static final Pattern DSFTOOL_VERSION_PATTERN =
       Pattern.compile("DSFTool\\s+(?<version>\\d+[.]\\d+[.]\\d+)");
   private static final String DSFTOOL_VERSION_MINIMUM = "2.1.0";
@@ -40,9 +40,9 @@ public class DSFToolInterface {
   private final Path tempDir;
   private final boolean attemptAutoDownload;
 
-  DSFToolInterface(Optional<Path> execLocation, boolean attemptAutoDownload, Path tempDir) {
+  XPToolsInterface(Optional<Path> execLocation, boolean attemptAutoDownload, Path tempBaseFolder) {
     this.attemptAutoDownload = attemptAutoDownload;
-    this.tempDir = tempDir;
+    this.tempDir = FileUtils.createAutoCleanedTempDir(tempBaseFolder, Optional.empty());
     this.configuredDsfPath = execLocation;
   }
 
@@ -88,7 +88,7 @@ public class DSFToolInterface {
 
   private Path getBundledDsfToolOrAttemptDownload() {
     LOG.debug("No explicit path to DSFTool given, trying to find or download one");
-    synchronized (DSFToolInterface.class) {
+    synchronized (XPToolsInterface.class) {
       try {
         final var targetFolder =
             Paths.get(System.getProperty("user.dir")).resolve(DSFTOOL_DEFAULT_FOLDER);

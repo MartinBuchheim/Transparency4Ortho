@@ -1,0 +1,30 @@
+plugins {
+    id 'application'
+}
+
+group 'de.melb00m'
+version '1.0-SNAPSHOT'
+
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+application {
+    mainClassName = 'de.melb00m.tr4o.app.Transparency4Ortho'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'commons-cli:commons-cli:1.4'
+    implementation 'org.apache.commons:commons-collections4:4.4'
+    implementation 'org.apache.commons:commons-lang3:3.10'
+    implementation 'me.tongfei:progressbar:0.8.1'
+    implementation 'org.apache.logging.log4j:log4j-api:2.13.2'
+    implementation 'org.apache.logging.log4j:log4j-core:2.13.2'
+
+    testImplementation 'junit:junit:4.13'
+}

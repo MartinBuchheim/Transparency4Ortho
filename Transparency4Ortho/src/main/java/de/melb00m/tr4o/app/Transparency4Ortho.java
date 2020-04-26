@@ -10,6 +10,8 @@ import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.ConsoleAppender;
 import org.apache.logging.log4j.core.config.Configurator;
 
 import java.nio.file.Files;
@@ -22,49 +24,61 @@ import java.util.stream.Collectors;
  * Main App class for TransparentRoads4Ortho.
  *
  * <p>Contains the main-method that is called upon application startup, and reads/validates the
- * incoming run-arguments before transferring them to a {@link
- * TransparentRoads4OrthoConfig}-instance.
+ * incoming run-arguments before transferring them to a {@link RunConfiguration}-instance.
  *
  * @author martin.buchheim
  */
-public class TransparentRoads4OrthoApp {
+public class Transparency4Ortho {
 
-  private static final Logger LOG = LogManager.getLogger(TransparentRoads4OrthoApp.class);
+  private static final Logger LOG = LogManager.getLogger(Transparency4Ortho.class);
 
   public static void main(String[] args) {
     final var options = generateCliOptions();
     try {
-      var line = new DefaultParser().parse(options, args);
+      final var line = new DefaultParser().parse(options, args);
+
       if (line.hasOption("h")) {
         printHelp(options);
-        return;
+        System.exit(0);
       }
+
       if (line.hasOption("version")) {
         // TODO: connect with release management
         throw new UnsupportedOperationException("Versioning currently not enabled");
       }
-      if (line.hasOption("d")) {
-        Configurator.setLevel("de.melb00m.tr4o", Level.DEBUG);
-      }
-      if (line.hasOption("dd")) {
-        Configurator.setLevel("de.melb00m.tr4o", Level.TRACE);
-        Configurator.setRootLevel(Level.TRACE);
-      }
 
       final var config = readAndVerifyArguments(line);
+      configureLoggingOutput(config.getConsoleLogLevel());
+
       new RunProcessor(config).startProcessing();
 
     } catch (IllegalArgumentException | ParseException ex) {
-      LOG.error(ex.getMessage(), ex);
-      LOG.info("Use --help to show usage information");
-      System.exit(1);
+      stopWithError(ex, true);
     } catch (Exception ex) {
-      LOG.error(ex);
-      System.exit(1);
+      stopWithError(ex, false);
     }
   }
 
-  private static TransparentRoads4OrthoConfig readAndVerifyArguments(CommandLine line) {
+  private static void stopWithError(final Exception fail, final boolean printUsageReminder) {
+    LOG.error("FAILURE: {}", fail.getMessage(), fail);
+    if (printUsageReminder) LOG.info("Use --help to show usage information");
+    System.exit(1);
+  }
+
+  private static void configureLoggingOutput(final Level level) {
+    if (level != Level.INFO) {
+      Configurator.setRootLevel(level);
+      // for the console-appender, we need to modify the threshold filter to the new log-level
+      final var context = LoggerContext.getContext(false);
+      context.getRootLogger().getAppenders().values().stream()
+          .filter(ConsoleAppender.class::isInstance)
+          .map(ConsoleAppender.class::cast)
+          .forEach(appender -> appender.removeFilter(appender.getFilter()));
+      context.updateLoggers();
+    }
+  }
+
+  private static RunConfiguration readAndVerifyArguments(CommandLine line) {
     final var args = line.getArgList();
     Validate.isTrue(args.size() >= 3, "Expecting at least 3 path-parameters with application call");
 
@@ -88,14 +102,19 @@ public class TransparentRoads4OrthoApp {
     dsfToolExec.ifPresent(
         dx -> Validate.isTrue(Files.isExecutable(dx), "DSFTool at '%s' is not executable", dx));
 
-    return new TransparentRoads4OrthoConfig(
+    var logLevel = Level.INFO;
+    if (line.hasOption("d")) logLevel = Level.DEBUG;
+    if (line.hasOption("dd")) logLevel = Level.TRACE;
+
+    return new RunConfiguration(
         xPlanePath,
         tilesPath,
         overlayPath,
         getOptionalPath(line, "dx"),
         getOptionalPath(line, "b"),
         Optional.ofNullable(line.getOptionValue("lf")),
-        Optional.ofNullable(line.getOptionValue("lp")));
+        Optional.ofNullable(line.getOptionValue("lp")),
+        logLevel);
   }
 
   private static Optional<Path> getOptionalPath(CommandLine line, String config) {
@@ -132,14 +151,14 @@ public class TransparentRoads4OrthoApp {
             true,
             String.format(
                 "Name of the library folder that will be created under '<X-Plane>/Custom Scenery'. Defaults to '%s'.",
-                TransparentRoads4OrthoConfig.DEFAULT_LIBRARY_FOLDER))
+                RunConfiguration.DEFAULT_LIBRARY_FOLDER))
         .addOption(
             "lp",
             "LibraryPrefix",
             true,
             String.format(
                 "Prefix used in Overlay-DSF for the TransparentRoads4Ortho-library. Defaults to '%s'",
-                TransparentRoads4OrthoConfig.DEFAULT_LIBRARY_PREFIX))
+                RunConfiguration.DEFAULT_LIBRARY_PREFIX))
         .addOption("d", "debug", false, "Show debug log output")
         .addOption("dd", "trace", false, "Show trace log output ")
         .addOption("h", "help", false, "Show detailed usage information");

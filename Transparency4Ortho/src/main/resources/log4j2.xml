@@ -5,19 +5,18 @@
     </Properties>
     <Appenders>
         <Console name="LogToConsole" target="SYSTEM_OUT">
-            <PatternLayout pattern="%-5level %msg%n %throwable{none}"/>
+            <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+            <PatternLayout pattern="%msg%n %throwable{none}"/>
         </Console>
-        <File name="LogToFile" fileName="${filename}" >
+        <File name="LogToFile" fileName="${filename}">
             <PatternLayout>
                 <Pattern>%d %p %c{1.} [%t] %m %throwable %n</Pattern>
             </PatternLayout>
         </File>
     </Appenders>
     <Loggers>
-        <Logger name="de.melb00m.tr4o" level="info">
-            <AppenderRef ref="LogToConsole"/>
-        </Logger>
         <Root level="debug">
+            <AppenderRef ref="LogToConsole"/>
             <AppenderRef ref="LogToFile"/>
         </Root>
     </Loggers>
