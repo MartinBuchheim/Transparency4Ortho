@@ -1,6 +1,6 @@
 package de.melb00m.tr4o.proc;
 
-import de.melb00m.tr4o.util.FileUtils;
+import de.melb00m.tr4o.helper.FileHelper;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -67,7 +67,7 @@ public class LibraryGenerator {
 
     // find our exported files in the folder
     final var filesToExport =
-        FileUtils.searchFileNamesRecursively(
+        FileHelper.searchFileNamesRecursively(
             libraryResourcesFolder, exportedFiles, Collections.emptySet());
     exportedFiles.forEach(
         export -> {
@@ -101,7 +101,7 @@ public class LibraryGenerator {
     final var exclusions =
         LIB_COPY_EXCLUSIONS.stream().map(xPlaneSourceLibraryFolder::resolve).toArray(Path[]::new);
     Files.createDirectories(libraryResourcesFolder);
-    FileUtils.copyRecursively(
+    FileHelper.copyRecursively(
         xPlaneSourceLibraryFolder, libraryResourcesFolder, Collections.emptySet(), exclusions);
   }
 
