@@ -64,7 +64,9 @@ public final class FileHelper {
     try {
       for (var sourcePath : getAllPathsRecursively(source, true, options, exclusions)) {
         var copyToPath = target.resolve(source.relativize(sourcePath));
-        Files.copy(sourcePath, copyToPath);
+        if (!Files.exists(copyToPath)) {
+          Files.copy(sourcePath, copyToPath);
+        }
       }
     } catch (IOException ex) {
       throw Exceptions.uncheck(ex);
@@ -98,7 +100,8 @@ public final class FileHelper {
     }
   }
 
-  public static Path createAutoCleanedTempDir(final Path baseFolder, final Optional<String> prefix) {
+  public static Path createAutoCleanedTempDir(
+      final Path baseFolder, final Optional<String> prefix) {
     try {
       if (!Files.exists(baseFolder)) {
         Files.createDirectories(baseFolder);
