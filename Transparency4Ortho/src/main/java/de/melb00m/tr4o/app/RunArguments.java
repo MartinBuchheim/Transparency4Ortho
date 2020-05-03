@@ -19,19 +19,16 @@ public final class RunArguments {
   static final String DEFAULT_LIBRARY_PREFIX = "transparentRoads4Ortho";
 
   private final Path xPlanePath;
-  private final Path overlaysPath;
-  private final Optional<Set<Path>> tilesPaths;
+  private final Set<Path> overlaysPath;
   private final Optional<Path> xpToolsPath;
   private final Level consoleLogLevel;
 
   public RunArguments(
       Path xPlanePath,
-      Path overlaysPath,
-      Optional<Set<Path>> tilesPaths,
+      Set<Path> overlaysPath,
       Optional<Path> xpToolsPath,
       Level consoleLogLevel) {
     this.xPlanePath = xPlanePath;
-    this.tilesPaths = tilesPaths;
     this.overlaysPath = overlaysPath;
     this.xpToolsPath = xpToolsPath;
     this.consoleLogLevel = consoleLogLevel;
@@ -41,11 +38,7 @@ public final class RunArguments {
     return xPlanePath;
   }
 
-  public Optional<Set<Path>> getTilesPaths() {
-    return tilesPaths;
-  }
-
-  public Path getOverlaysPath() {
+  public Set<Path> getOverlayPaths() {
     return overlaysPath;
   }
 
@@ -61,7 +54,6 @@ public final class RunArguments {
   public String toString() {
     return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
         .append("xPlanePath", xPlanePath)
-        .append("tilesPaths", tilesPaths)
         .append("overlaysPath", overlaysPath)
         .append("xpToolsPath", xpToolsPath)
         .toString();
