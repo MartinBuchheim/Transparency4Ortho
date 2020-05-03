@@ -1,5 +1,6 @@
 package de.melb00m.tr4o.proc;
 
+import de.melb00m.tr4o.app.AppConfig;
 import de.melb00m.tr4o.helper.FileHelper;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
@@ -9,42 +10,53 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class LibraryGenerator {
 
   private static final Logger LOG = LogManager.getLogger(LibraryGenerator.class);
-  private static final String LIBRARY_TXT = "library.txt";
   private static final String EXPORT_DIRECTIVE = "EXPORT_EXCLUDE %s/%s %s";
   private static final List<String> LIB_TXT_HEADERS = List.of("A", "800", "LIBRARY", "");
-  private static final Set<String> LIB_COPY_EXCLUSIONS = Set.of("library.lib", LIBRARY_TXT);
 
   private final String libraryPrefix;
   private final Path libraryFolder;
-  private final Path libraryResourcesFolder;
-  private final Path xPlaneSourceLibraryFolder;
-  private final Set<String> exportedFiles;
+  private final Path libraryDefinition;
+  private final Path roadLibraryTargetFolder;
+  private final Path roadsLibrarySourceFolder;
+  private final Set<Path> roadsLibraryExcludes;
+  private final Set<String> roadsLibraryExportDefinitions;
 
-  public LibraryGenerator(
-      String libraryPrefix,
-      Path libraryFolder,
-      Path libraryResourcesFolder,
-      Path resourcesSourceFolder,
-      Collection<String> exportedFiles) {
-    this.libraryPrefix = libraryPrefix;
-    this.libraryFolder = libraryFolder;
-    this.libraryResourcesFolder = libraryResourcesFolder;
-    this.xPlaneSourceLibraryFolder = resourcesSourceFolder;
-    this.exportedFiles = Set.copyOf(exportedFiles);
+  public LibraryGenerator() {
+    final var xplanePath = AppConfig.getRunArguments().getXPlanePath();
+    this.libraryPrefix = AppConfig.getApplicationConfig().getString("libgen.library.prefix");
+    this.libraryFolder =
+        xplanePath.resolve(AppConfig.getApplicationConfig().getString("libgen.library.folder"));
+    this.libraryDefinition =
+        xplanePath.resolve(
+            AppConfig.getApplicationConfig().getString("libgen.library.definition-file"));
+    this.roadLibraryTargetFolder =
+        xplanePath.resolve(
+            AppConfig.getApplicationConfig().getString("libgen.resources.roads.target"));
+    this.roadsLibrarySourceFolder =
+        xplanePath.resolve(
+            AppConfig.getApplicationConfig().getString("libgen.resources.roads.source"));
+    this.roadsLibraryExcludes =
+        AppConfig.getApplicationConfig()
+            .getStringList("libgen.resources.roads.duplication.ignore-files").stream()
+            .map(xplanePath::resolve)
+            .collect(Collectors.toSet());
+    this.roadsLibraryExportDefinitions =
+        Set.copyOf(
+            AppConfig.getApplicationConfig().getStringList("libgen.resources.roads.exports"));
   }
 
   public void validateOrCreateLibrary() {
     synchronized (this) {
       try {
-        if (Files.exists(libraryFolder)) {
+        if (Files.exists(libraryDefinition)) {
           validateExistingLibrary();
         } else {
           copyLibraryFolder();
@@ -58,29 +70,28 @@ public class LibraryGenerator {
   }
 
   private void generateLibraryTxt() throws IOException {
-    final var libraryTxt = libraryFolder.resolve(LIBRARY_TXT);
-    LOG.info("Generating library at {}", libraryTxt);
+    LOG.info("Generating library at {}", libraryDefinition);
     Validate.isTrue(
-        Files.notExists(libraryTxt),
+        Files.notExists(libraryDefinition),
         "Can't create new library.txt at %s: It already exists",
-        libraryTxt);
+        libraryDefinition);
 
     // find our exported files in the folder
     final var filesToExport =
         FileHelper.searchFileNamesRecursively(
-            libraryResourcesFolder, exportedFiles, Collections.emptySet());
-    exportedFiles.forEach(
+            roadLibraryTargetFolder, roadsLibraryExportDefinitions, Collections.emptySet());
+    roadsLibraryExportDefinitions.forEach(
         export -> {
           Validate.isTrue(
               filesToExport.containsKey(export),
               "No file named '%s' for export in library.txt found in library: {}",
               export,
-              libraryResourcesFolder);
+              roadLibraryTargetFolder);
           Validate.isTrue(
               filesToExport.get(export).size() == 1,
               "More than one file named '%s' found in copied library: {}",
               export,
-              libraryResourcesFolder);
+              roadLibraryTargetFolder);
         });
 
     // Generate the library.txt content-lines
@@ -89,38 +100,38 @@ public class LibraryGenerator {
         .map(entry -> buildExportDirective(entry.getKey(), entry.getValue()))
         .forEach(libLines::add);
 
-    Files.write(libraryTxt, libLines);
+    Files.write(libraryDefinition, libLines);
   }
 
   private void copyLibraryFolder() throws IOException {
     LOG.info("Copying X-Plane default roads-library to {}", libraryFolder);
     Validate.isTrue(
-        Files.exists(xPlaneSourceLibraryFolder),
+        Files.exists(roadsLibrarySourceFolder),
         "Can't find X-Plane default roads-library at expected location: {}",
-        xPlaneSourceLibraryFolder);
-    final var exclusions =
-        LIB_COPY_EXCLUSIONS.stream().map(xPlaneSourceLibraryFolder::resolve).toArray(Path[]::new);
-    Files.createDirectories(libraryResourcesFolder);
+        roadsLibrarySourceFolder);
+    Files.createDirectories(roadLibraryTargetFolder);
     FileHelper.copyRecursively(
-        xPlaneSourceLibraryFolder, libraryResourcesFolder, Collections.emptySet(), exclusions);
+        roadsLibrarySourceFolder,
+        roadLibraryTargetFolder,
+        Collections.emptySet(),
+        roadsLibraryExcludes.toArray(new Path[0]));
   }
 
   private void validateExistingLibrary() throws IOException {
     LOG.info("Verifying that the existing library at {} can be used...", libraryFolder);
-    final var libraryFile = libraryFolder.resolve(LIBRARY_TXT);
     Validate.isTrue(
-        Files.isReadable(libraryFile),
+        Files.isReadable(libraryDefinition),
         "Can't read the 'library.txt' file in the existing library: {}",
-        libraryFile);
-    final var containedLines = Files.readAllLines(libraryFile);
-    exportedFiles.forEach(
+        libraryDefinition);
+    final var containedLines = Files.readAllLines(libraryDefinition);
+    roadsLibraryExportDefinitions.forEach(
         exp -> {
           final var expSearch = String.format(EXPORT_DIRECTIVE, libraryPrefix, exp, "");
           Validate.isTrue(
               containedLines.stream().anyMatch(line -> line.startsWith(expSearch)),
               "Could not find expected export '{}' in existing library: {}",
               expSearch,
-              libraryFile);
+              libraryDefinition);
         });
   }
 

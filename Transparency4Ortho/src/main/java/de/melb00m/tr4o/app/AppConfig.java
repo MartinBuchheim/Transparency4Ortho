@@ -12,6 +12,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -52,10 +53,12 @@ public final class AppConfig {
 
     final var xPlanePath = Path.of(args.get(0));
     final var overlayPath = Path.of(args.get(1));
-    final var tilesPath =
-        args.subList(2, args.size()).stream()
-            .map(Paths::get)
-            .collect(Collectors.toUnmodifiableSet());
+    final var tilesPaths =
+        args.size() <= 2
+            ? Collections.<Path>emptySet()
+            : args.subList(2, args.size()).stream()
+                .map(Paths::get)
+                .collect(Collectors.toUnmodifiableSet());
     final var dsfToolExec = getOptionalPath("dx");
 
     Validate.isTrue(
@@ -64,7 +67,7 @@ public final class AppConfig {
         Files.exists(overlayPath.resolve("Earth nav data")),
         "Overlay path '%s' does not contain an expected 'Earth nav data' folder",
         overlayPath);
-    tilesPath.forEach(
+    tilesPaths.forEach(
         tile ->
             Validate.isTrue(Files.isReadable(tile), "Tile directory '%s' is not readable", tile));
     dsfToolExec.ifPresent(
@@ -76,12 +79,9 @@ public final class AppConfig {
 
     return new RunArguments(
         xPlanePath,
-        tilesPath,
         overlayPath,
+        tilesPaths.isEmpty() ? Optional.empty() : Optional.of(tilesPaths),
         getOptionalPath("dx"),
-        getOptionalPath("b"),
-        Optional.ofNullable(line.getOptionValue("lf")),
-        Optional.ofNullable(line.getOptionValue("lp")),
         logLevel);
   }
 

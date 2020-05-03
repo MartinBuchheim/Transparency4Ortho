@@ -10,6 +10,7 @@ public class RunProcessor {
   public void startProcessing() {
     synchronized (RunProcessor.class) {
       new XPToolsInterface(true).getDSFExecutable();
+      new LibraryGenerator().validateOrCreateLibrary();
     }
   }
 
