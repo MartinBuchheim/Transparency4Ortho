@@ -23,7 +23,7 @@ public class LibraryGenerator {
 
   private final String libraryPrefix;
   private final Path libraryFolder;
-  private final Path libraryDefinition;
+  private final Path libraryDefinitionFile;
   private final Path roadLibraryTargetFolder;
   private final Path roadsLibrarySourceFolder;
   private final Set<Path> roadsLibraryExcludes;
@@ -34,7 +34,7 @@ public class LibraryGenerator {
     this.libraryPrefix = AppConfig.getApplicationConfig().getString("libgen.library.prefix");
     this.libraryFolder =
         xplanePath.resolve(AppConfig.getApplicationConfig().getString("libgen.library.folder"));
-    this.libraryDefinition =
+    this.libraryDefinitionFile =
         xplanePath.resolve(
             AppConfig.getApplicationConfig().getString("libgen.library.definition-file"));
     this.roadLibraryTargetFolder =
@@ -56,7 +56,7 @@ public class LibraryGenerator {
   public void validateOrCreateLibrary() {
     synchronized (this) {
       try {
-        if (Files.exists(libraryDefinition)) {
+        if (Files.exists(libraryDefinitionFile)) {
           validateExistingLibrary();
         } else {
           copyLibraryFolder();
@@ -64,17 +64,17 @@ public class LibraryGenerator {
         }
       } catch (IOException e) {
         throw new IllegalStateException(
-            String.format("There was a problem initializing the library at: %s", libraryFolder));
+            String.format("There was a problem initializing the library at: %s", libraryFolder), e);
       }
     }
   }
 
   private void generateLibraryTxt() throws IOException {
-    LOG.info("Generating library at {}", libraryDefinition);
+    LOG.info("Generating library at {}", libraryDefinitionFile);
     Validate.isTrue(
-        Files.notExists(libraryDefinition),
+        Files.notExists(libraryDefinitionFile),
         "Can't create new library.txt at %s: It already exists",
-        libraryDefinition);
+            libraryDefinitionFile);
 
     // find our exported files in the folder
     final var filesToExport =
@@ -100,7 +100,7 @@ public class LibraryGenerator {
         .map(entry -> buildExportDirective(entry.getKey(), entry.getValue()))
         .forEach(libLines::add);
 
-    Files.write(libraryDefinition, libLines);
+    Files.write(libraryDefinitionFile, libLines);
   }
 
   private void copyLibraryFolder() throws IOException {
@@ -120,10 +120,10 @@ public class LibraryGenerator {
   private void validateExistingLibrary() throws IOException {
     LOG.info("Verifying that the existing library at {} can be used...", libraryFolder);
     Validate.isTrue(
-        Files.isReadable(libraryDefinition),
+        Files.isReadable(libraryDefinitionFile),
         "Can't read the 'library.txt' file in the existing library: {}",
-        libraryDefinition);
-    final var containedLines = Files.readAllLines(libraryDefinition);
+            libraryDefinitionFile);
+    final var containedLines = Files.readAllLines(libraryDefinitionFile);
     roadsLibraryExportDefinitions.forEach(
         exp -> {
           final var expSearch = String.format(EXPORT_DIRECTIVE, libraryPrefix, exp, "");
@@ -131,7 +131,7 @@ public class LibraryGenerator {
               containedLines.stream().anyMatch(line -> line.startsWith(expSearch)),
               "Could not find expected export '{}' in existing library: {}",
               expSearch,
-              libraryDefinition);
+                  libraryDefinitionFile);
         });
   }
 

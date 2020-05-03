@@ -64,7 +64,7 @@ public final class FileHelper {
     try {
       for (var sourcePath : getAllPathsRecursively(source, true, options, exclusions)) {
         var copyToPath = target.resolve(source.relativize(sourcePath));
-        if (!Files.exists(copyToPath)) {
+        if (copyToPath != target) {
           Files.copy(sourcePath, copyToPath);
         }
       }
