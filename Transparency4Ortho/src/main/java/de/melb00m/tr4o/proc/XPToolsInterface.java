@@ -7,7 +7,11 @@ import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.FileSystems;
@@ -25,9 +29,14 @@ public class XPToolsInterface {
 
   private final AtomicReference<Path> dsfExecutable = new AtomicReference<>();
   private final boolean attemptAutoDownload;
+  private final Path temporaryFolder;
 
   XPToolsInterface(boolean attemptAutoDownload) {
     this.attemptAutoDownload = attemptAutoDownload;
+    this.temporaryFolder =
+        FileHelper.createAutoCleanedTempDir(
+            Path.of(AppConfig.getApplicationConfig().getString("xptools.tmp-folder")),
+            Optional.empty());
   }
 
   private static URL getDownloadUrlForOS() throws MalformedURLException {
@@ -43,7 +52,11 @@ public class XPToolsInterface {
     throw new IllegalStateException("No URL for auto-download of XPTools for current OS available");
   }
 
-  Path getDSFExecutable() {
+  private static String toProcessFile(final Path path) {
+    return path.toAbsolutePath().toString();
+  }
+
+  private Path getDSFExecutable() {
     synchronized (dsfExecutable) {
       if (dsfExecutable.get() == null) {
         dsfExecutable.set(
@@ -52,6 +65,30 @@ public class XPToolsInterface {
       }
     }
     return dsfExecutable.get();
+  }
+
+  public String dsfToText(final Path dsfFile) throws IOException {
+    Validate.isTrue(Files.isReadable(dsfFile), "Given DSFFile is not readable: %s", dsfFile);
+    final var process =
+        new ProcessBuilder(
+                toProcessFile(getDSFExecutable()), "--dsf2text", toProcessFile(dsfFile), "-")
+            .start();
+    try (final var input = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+      return String.join(System.lineSeparator(), input.lines().collect(Collectors.toList()));
+    }
+  }
+
+  public void textToDsf(final Path targetFile, final String contents) throws IOException {
+    Validate.isTrue(
+        !Files.exists(targetFile), "Won't override existing DSF file at: %s", targetFile);
+    final var process =
+        new ProcessBuilder(
+                toProcessFile(getDSFExecutable()), "--text2dsf", "-", toProcessFile(targetFile))
+            .start();
+    try (var osw = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()))) {
+      osw.write(contents);
+      osw.flush();
+    }
   }
 
   private Path getFirstMatchingExecutable(final Collection<String> execNames) {
@@ -94,20 +131,14 @@ public class XPToolsInterface {
           downloadUrl);
 
       // download zipped XPTools from X-Plane developer site
-      final var tmpPath =
-          FileHelper.createAutoCleanedTempDir(
-              Path.of(
-                  AppConfig.getApplicationConfig().getString("xptools.autodownload.tmp-folder")),
-              Optional.empty());
       final var dlTarget =
-          tmpPath.resolve(FileHelper.extractFileNameFromPath(downloadUrl.getFile()));
+          temporaryFolder.resolve(FileHelper.extractFileNameFromPath(downloadUrl.getFile()));
       FileHelper.downloadFile(downloadUrl, dlTarget);
       LOG.debug("Download finished successfully");
 
       // Copy DSFTool and DDSTool from ZIP to target folder
       final var executablesToKeep =
-          Set.copyOf(
-              AppConfig.getApplicationConfig().getStringList("xptools.executables.all"));
+          Set.copyOf(AppConfig.getApplicationConfig().getStringList("xptools.executables.all"));
       Files.createDirectories(targetFolder);
       try (var zipFs = FileSystems.newFileSystem(dlTarget, null)) {
         for (Path rootDirectory : zipFs.getRootDirectories()) {

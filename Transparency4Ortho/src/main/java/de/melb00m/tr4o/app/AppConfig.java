@@ -12,13 +12,12 @@ import org.apache.logging.log4j.core.config.Configurator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 public final class AppConfig {
 
-  private static AppConfig INSTANCE;
+  private static AppConfig instance;
   private final Config config;
   private final RunArguments arguments;
   private final CommandLine commandLine;
@@ -32,44 +31,41 @@ public final class AppConfig {
 
   static void initialize(final CommandLine cmdLine) {
     synchronized (AppConfig.class) {
-      if (null != INSTANCE) {
+      if (null != instance) {
         throw new IllegalStateException("AppConfig singleton was already initialized");
       }
-      INSTANCE = new AppConfig(cmdLine);
+      instance = new AppConfig(cmdLine);
     }
   }
 
   public static Config getApplicationConfig() {
-    return INSTANCE.config;
+    return instance.config;
   }
 
   public static RunArguments getRunArguments() {
-    return INSTANCE.arguments;
+    return instance.arguments;
   }
 
   private RunArguments readAndVerifyArguments(final CommandLine line) {
     final var args = line.getArgList();
-    Validate.isTrue(args.size() >= 3, "Expecting at least 3 path-parameters with application call");
+    Validate.isTrue(args.size() >= 2, "Expecting at least 2 path-parameters with application call");
 
     final var xPlanePath = Path.of(args.get(0));
-    final var overlayPath = Path.of(args.get(1));
-    final var tilesPaths =
-        args.size() <= 2
-            ? Collections.<Path>emptySet()
-            : args.subList(2, args.size()).stream()
-                .map(Paths::get)
-                .collect(Collectors.toUnmodifiableSet());
+    final var overlayPaths =
+        args.subList(1, args.size()).stream()
+            .map(Paths::get)
+            .collect(Collectors.toUnmodifiableSet());
     final var dsfToolExec = getOptionalPath("dx");
 
     Validate.isTrue(
         Files.isReadable(xPlanePath), "X-Plane location '%s' is not readable", xPlanePath);
-    Validate.isTrue(
-        Files.exists(overlayPath.resolve("Earth nav data")),
-        "Overlay path '%s' does not contain an expected 'Earth nav data' folder",
-        overlayPath);
-    tilesPaths.forEach(
-        tile ->
-            Validate.isTrue(Files.isReadable(tile), "Tile directory '%s' is not readable", tile));
+    Validate.isTrue(!overlayPaths.isEmpty(), "No Overlay-Paths have been given");
+    overlayPaths.forEach(
+        path ->
+            Validate.isTrue(
+                Files.isReadable(path.resolve("Earth nav data")),
+                "Overlay-Path '%s' does not contain expected 'Earth nav data' folder",
+                path));
     dsfToolExec.ifPresent(
         dx -> Validate.isTrue(Files.isExecutable(dx), "DSFTool at '%s' is not executable", dx));
 
@@ -77,12 +73,7 @@ public final class AppConfig {
     if (line.hasOption("d")) logLevel = Level.DEBUG;
     if (line.hasOption("dd")) logLevel = Level.TRACE;
 
-    return new RunArguments(
-        xPlanePath,
-        overlayPath,
-        tilesPaths.isEmpty() ? Optional.empty() : Optional.of(tilesPaths),
-        getOptionalPath("dx"),
-        logLevel);
+    return new RunArguments(xPlanePath, overlayPaths, getOptionalPath("dx"), logLevel);
   }
 
   private Optional<Path> getOptionalPath(String config) {
