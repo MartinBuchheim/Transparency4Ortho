@@ -55,7 +55,8 @@ public final class AppConfig {
         args.subList(1, args.size()).stream()
             .map(Paths::get)
             .collect(Collectors.toUnmodifiableSet());
-    final var dsfToolExec = getOptionalPath("dx");
+    final var dsfToolExec = getOptionalPath("dsf");
+    final var backupPath = getOptionalPath("b");
 
     Validate.isTrue(
         Files.isReadable(xPlanePath), "X-Plane location '%s' is not readable", xPlanePath);
@@ -68,12 +69,23 @@ public final class AppConfig {
                 path));
     dsfToolExec.ifPresent(
         dx -> Validate.isTrue(Files.isExecutable(dx), "DSFTool at '%s' is not executable", dx));
+    backupPath.ifPresent(
+        path ->
+            Validate.isTrue(
+                Files.isWritable(path), "Backup-folder is not writeable: %s", backupPath));
 
     var logLevel = Level.INFO;
     if (line.hasOption("d")) logLevel = Level.DEBUG;
     if (line.hasOption("dd")) logLevel = Level.TRACE;
 
-    return new RunArguments(xPlanePath, overlayPaths, getOptionalPath("dx"), logLevel);
+    return new RunArguments(
+        xPlanePath,
+        overlayPaths,
+        dsfToolExec,
+        logLevel,
+        line.hasOption("i"),
+        line.hasOption("n"),
+        backupPath);
   }
 
   private Optional<Path> getOptionalPath(String config) {

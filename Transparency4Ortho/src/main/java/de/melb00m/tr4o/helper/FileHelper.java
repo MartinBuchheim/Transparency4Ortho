@@ -2,6 +2,7 @@ package de.melb00m.tr4o.helper;
 
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
+import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,6 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.zip.CRC32;
 
 public final class FileHelper {
 
@@ -87,8 +89,17 @@ public final class FileHelper {
     return matches;
   }
 
+  public static String getFilenameWithoutExtension(final Path path) {
+    return removeFileExtension(path.getFileName().toString());
+  }
+
+  public static String removeFileExtension(final String path) {
+    var idx = path.lastIndexOf('.');
+    return idx > 0 ? path.substring(0, idx) : path;
+  }
+
   public static String extractFileNameFromPath(final String path) {
-    var idx = path.lastIndexOf('/');
+    var idx = path.replace('\\', '/').lastIndexOf('/');
     return idx > 0 ? path.substring(idx + 1) : path;
   }
 
@@ -113,5 +124,27 @@ public final class FileHelper {
     } catch (IOException e) {
       throw Exceptions.uncheck(e);
     }
+  }
+
+  public static long deepCrc32(final Path source) {
+    Validate.isTrue(
+        Files.isReadable(source), "CRC32 not possible, location is not readable: %s", source);
+    final var crc = new CRC32();
+    try (final var stream = Files.walk(source)) {
+      stream
+          .sorted()
+          .filter(Files::isRegularFile)
+          .forEachOrdered(
+              file -> {
+                try {
+                  crc.update(Files.readAllBytes(file));
+                } catch (IOException e) {
+                  throw Exceptions.uncheck(e);
+                }
+              });
+    } catch (IOException e) {
+      throw Exceptions.uncheck(e);
+    }
+    return crc.getValue();
   }
 }

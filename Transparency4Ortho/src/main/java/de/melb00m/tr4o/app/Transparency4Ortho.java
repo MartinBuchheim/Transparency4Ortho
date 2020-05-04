@@ -34,7 +34,9 @@ public class Transparency4Ortho {
       }
 
       if (line.hasOption("v")) {
-        new PrintWriter(System.out).println(Transparency4Ortho.class.getPackage().getImplementationVersion());
+        final var writer = new PrintWriter(System.out);
+        writer.println(Transparency4Ortho.class.getPackage().getImplementationVersion());
+        writer.flush();
         System.exit(0);
       }
 
@@ -69,29 +71,22 @@ public class Transparency4Ortho {
   private static Options generateCliOptions() {
     return new Options()
         .addOption(
-            "dx",
-            "DSFToolExecutable",
+            "dsf",
+            "dsfTool",
             true,
-            "Path to DSFTool Executable. If not given, an attempt is made to automatically download and store the tool from the X-Plane Developer site.")
+            "Path to DSFTool Executable. If not given, an attempt is made to automatically download and store the tool from the X-Plane Developer site (unless '-n' is used).")
         .addOption(
             "b",
-            "OverlayBackupPath",
+            "overlayBackups",
             true,
             "Folder in which the Overlay-Backups will be stored before they are modified. Defaults to '<X-Plane-Folder>/TransparentRoads4Ortho/Backups/<current-date>' in the application folder.")
         .addOption(
-            "lf",
-            "LibraryFolderName",
-            true,
-            String.format(
-                "Name of the library folder that will be created under '<X-Plane>/Custom Scenery'. Defaults to '%s'.",
-                RunArguments.DEFAULT_LIBRARY_FOLDER))
+            "i",
+            "ignoreChecksum",
+            false,
+            "Ignore checksum errors when copying X-Plane default libraries.")
         .addOption(
-            "lp",
-            "LibraryPrefix",
-            true,
-            String.format(
-                "Prefix used in Overlay-DSF for the TransparentRoads4Ortho-library. Defaults to '%s'",
-                RunArguments.DEFAULT_LIBRARY_PREFIX))
+            "n", "noDownload", false, "Do not attempt to download required tools automatically.")
         .addOption("d", "debug", false, "Show debug log output")
         .addOption("dd", "trace", false, "Show trace log output ")
         .addOption("h", "help", false, "Show detailed usage information")

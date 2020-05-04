@@ -38,5 +38,5 @@ dependencies {
 
     testImplementation 'junit:junit:4.13'
 
-    runtime files('src/dist/config')
+    //runtime files('src/dist/config')
 }
