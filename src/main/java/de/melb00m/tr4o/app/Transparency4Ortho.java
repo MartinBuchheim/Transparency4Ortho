@@ -1,13 +1,12 @@
 package de.melb00m.tr4o.app;
 
+import de.melb00m.tr4o.helper.OutputHelper;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.io.PrintWriter;
 
 /**
  * Main App class for TransparentRoads4Ortho.
@@ -33,9 +32,8 @@ public class Transparency4Ortho {
       }
 
       if (line.hasOption("v")) {
-        final var writer = new PrintWriter(System.out);
-        writer.println(Transparency4Ortho.class.getPackage().getImplementationVersion());
-        writer.flush();
+        OutputHelper.writeLinesToConsole(
+            Transparency4Ortho.class.getPackage().getImplementationVersion());
         System.exit(0);
       }
 
@@ -69,6 +67,11 @@ public class Transparency4Ortho {
 
   private static Options generateCliOptions() {
     return new Options()
+        .addOption(
+            "s",
+            "skipModifications",
+            false,
+            "Skip the automatic approach to making the roads within the Transparency4Ortho library-folder transparent. Allows you to apply your own transparency-mod manually, which will then be active for all transformed overlays.")
         .addOption(
             "dsf",
             "dsfTool",

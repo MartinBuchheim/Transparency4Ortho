@@ -62,11 +62,7 @@ public final class AppConfig {
         Files.isReadable(xPlanePath), "X-Plane location '%s' is not readable", xPlanePath);
     Validate.isTrue(!overlayPaths.isEmpty(), "No Overlay-Paths have been given");
     overlayPaths.forEach(
-        path ->
-            Validate.isTrue(
-                Files.isReadable(path),
-                "Overlay-path '%s' is not readable",
-                path));
+        path -> Validate.isTrue(Files.isReadable(path), "Overlay-path '%s' is not readable", path));
     dsfToolExec.ifPresent(
         dx -> Validate.isTrue(Files.isExecutable(dx), "DSFTool at '%s' is not executable", dx));
     backupPath.ifPresent(
@@ -81,6 +77,7 @@ public final class AppConfig {
     return new RunArguments(
         xPlanePath,
         overlayPaths,
+        line.hasOption("s"),
         dsfToolExec,
         logLevel,
         line.hasOption("i"),

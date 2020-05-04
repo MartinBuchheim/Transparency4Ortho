@@ -1,6 +1,7 @@
 package de.melb00m.tr4o.proc;
 
 import de.melb00m.tr4o.app.AppConfig;
+import de.melb00m.tr4o.helper.Exceptions;
 import de.melb00m.tr4o.helper.FileHelper;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
@@ -14,6 +15,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class LibraryGenerator {
@@ -29,6 +31,7 @@ public class LibraryGenerator {
   private final Path roadsLibrarySourceFolder;
   private final Set<Path> roadsLibraryExcludes;
   private final Set<String> roadsLibraryExportDefinitions;
+  private final Set<Path> modifyUncommentRoadFiles;
 
   public LibraryGenerator() {
     final var xplanePath = AppConfig.getRunArguments().getXPlanePath();
@@ -52,6 +55,11 @@ public class LibraryGenerator {
     this.roadsLibraryExportDefinitions =
         Set.copyOf(
             AppConfig.getApplicationConfig().getStringList("libgen.resources.roads.exports"));
+    this.modifyUncommentRoadFiles =
+        AppConfig.getApplicationConfig()
+            .getStringList("libgen.modifications.roads.uncomment.target-files").stream()
+            .map(fileName -> xplanePath.resolve(fileName))
+            .collect(Collectors.toUnmodifiableSet());
   }
 
   public void validateOrCreateLibrary() {
@@ -66,12 +74,69 @@ public class LibraryGenerator {
               roadsLibrarySourceFolder);
           validateRoadsLibraryChecksum();
           copyLibraryFolder();
+          applyLibraryModifications();
           generateLibraryTxt();
         }
       } catch (IOException e) {
         throw new IllegalStateException(
             String.format("There was a problem initializing the library at: %s", libraryFolder), e);
       }
+    }
+  }
+
+  private void applyLibraryModifications() {
+    if (AppConfig.getRunArguments().isSkipLibraryModifications()) {
+      LOG.info("Skipping automatic library modifications");
+      return;
+    }
+    LOG.info("Applying modifications for transparent roads");
+    final var uncommentStartingWith =
+        AppConfig.getApplicationConfig()
+            .getStringList("libgen.modifications.roads.uncomment.lines-starting-with").stream()
+            .collect(Collectors.toUnmodifiableSet());
+    final var groupPattern =
+        Pattern.compile(
+            AppConfig.getApplicationConfig()
+                .getString("libgen.modifications.roads.uncomment.groups-regex"));
+    final var uncommentEnabledGroups =
+        AppConfig.getApplicationConfig()
+            .getStringList("libgen.modifications.roads.uncomment.groups-enabled").stream()
+            .collect(Collectors.toUnmodifiableSet());
+    try {
+      for (final var fileToModify : modifyUncommentRoadFiles) {
+        if (!Files.isWritable(fileToModify)) {
+          throw new IllegalStateException(
+              String.format("File not writeable for modification: %s", fileToModify));
+        }
+        final var lines = Files.readAllLines(fileToModify);
+        final var newLines = new ArrayList<String>(lines.size());
+        final var groups = new ArrayList<String>();
+        var uncommentEnabledBlock = false;
+        for (int lineNo = 0; lineNo < lines.size(); lineNo++) {
+          final var line = lines.get(lineNo);
+          var matcher = groupPattern.matcher(line);
+          if (matcher.matches()) {
+            final var groupName = matcher.group("groupName");
+            groups.add(groupName);
+            uncommentEnabledBlock = uncommentEnabledGroups.contains(groupName);
+          }
+          final var uncomment =
+              uncommentEnabledBlock && uncommentStartingWith.stream().anyMatch(line::startsWith);
+          final var newLine = uncomment ? String.format("#(Transparency4Ortho) %s", line) : line;
+          if (uncomment) {
+            LOG.trace(
+                "Line {} in {} changed from '{}' to '{}'", lineNo + 1, fileToModify, line, newLine);
+          }
+          newLines.add(newLine);
+        }
+        LOG.trace("Groups identified in file {}: {}", fileToModify, groups);
+        if (!Objects.equals(lines, newLines)) {
+          Files.write(fileToModify, newLines);
+          LOG.debug("Modifications saved in {}", fileToModify);
+        }
+      }
+    } catch (IOException e) {
+      throw Exceptions.uncheck(e);
     }
   }
 

@@ -10,36 +10,35 @@ import java.util.Set;
 
 public class ExclusionAwareFileCollector extends SimpleFileVisitor<Path> {
 
-    private final Set<Path> exclusions;
-    private final boolean includeDirectories;
-    private final List<Path> collectedFiles = new ArrayList<>();
+  private final Set<Path> exclusions;
+  private final boolean includeDirectories;
+  private final List<Path> collectedFiles = new ArrayList<>();
 
-    public ExclusionAwareFileCollector(final Set<Path> exclusions, final boolean includeDirectories) {
-        this.exclusions = exclusions;
-        this.includeDirectories = includeDirectories;
+  public ExclusionAwareFileCollector(final Set<Path> exclusions, final boolean includeDirectories) {
+    this.exclusions = exclusions;
+    this.includeDirectories = includeDirectories;
+  }
+
+  @Override
+  public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+    if (exclusions.contains(dir)) {
+      return FileVisitResult.SKIP_SUBTREE;
     }
-
-    @Override
-    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-        if (exclusions.contains(dir)) {
-            return FileVisitResult.SKIP_SUBTREE;
-        }
-        if (includeDirectories) {
-            collectedFiles.add(dir);
-        }
-        return FileVisitResult.CONTINUE;
+    if (includeDirectories) {
+      collectedFiles.add(dir);
     }
+    return FileVisitResult.CONTINUE;
+  }
 
-    @Override
-    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-        if (!exclusions.contains(file)) {
-            collectedFiles.add(file);
-        }
-        return FileVisitResult.CONTINUE;
+  @Override
+  public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+    if (!exclusions.contains(file)) {
+      collectedFiles.add(file);
     }
+    return FileVisitResult.CONTINUE;
+  }
 
-    public List<Path> getCollectedFiles() {
-        return collectedFiles;
-    }
-
+  public List<Path> getCollectedFiles() {
+    return collectedFiles;
+  }
 }

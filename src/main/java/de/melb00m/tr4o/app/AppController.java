@@ -99,8 +99,7 @@ public class AppController {
   }
 
   private void userConfirmDetectedOrthos(final MultiValuedMap<Path, Path> sceneryToOverlayMap) {
-    LOG.info("The following ortho-sceneries are covering tiles that are part of the given overlays with ortho-imagery.");
-    LOG.info("These tiles will be modified to use the Transparency4Ortho library to make rural roads transparent.");
+    LOG.info("The following ortho-sceneries cover the given overlays with ortho-imagery:");
     sceneryToOverlayMap.keySet().stream()
         .sorted()
         .forEach(
@@ -113,9 +112,14 @@ public class AppController {
               LOG.info("    >> {}  [Tiles: {}]", scenery.getFileName(), tilesList);
             });
 
+    LOG.info(
+        "These tiles will be modified to use the Transparency4Ortho library to make smaller roads transparent.");
+    LOG.info("If the above looks reasonable to you, proceed with the transformation.");
+    LOG.info(
+        "No worries: every overlay that needs to be transformed will be backed up beforehand.");
     OutputHelper.confirmYesOrExit(
         false,
-        () -> "Does the above look okay to you?",
+        () -> "Proceed with transformation?",
         () ->
             "Please check the documentation for more information about controlling the ortho-scenery auto-detection.");
   }
