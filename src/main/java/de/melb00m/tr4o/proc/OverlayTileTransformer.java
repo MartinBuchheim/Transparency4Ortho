@@ -33,7 +33,7 @@ public class OverlayTileTransformer {
 
   private boolean transformed;
 
-  OverlayTileTransformer(
+  public OverlayTileTransformer(
       Path dsfFile, Path backupFolder, String libraryName, XPToolsInterface xpToolsInterface) {
     this.dsfFile = dsfFile;
     this.backupDsfFile =
@@ -61,10 +61,10 @@ public class OverlayTileTransformer {
         .collect(Collectors.toUnmodifiableSet());
   }
 
-  void runTransformation() {
+  public void runTransformation() {
     synchronized (this) {
       try {
-        LOG.trace("Analyzing Overlay tile: {}", dsfFile);
+        LOG.trace("Analyzing overlay tile: {}", dsfFile);
         final var sourceContent = xpToolsInterface.dsfToText(dsfFile);
         final var transformedContent =
             sourceContent
@@ -74,7 +74,7 @@ public class OverlayTileTransformer {
 
         // shortcut: nothing had to be replaced
         if (Objects.equals(sourceContent, transformedContent)) {
-          LOG.trace("No modifications in Overlay file necessary: {}", dsfFile);
+          LOG.trace("No modifications in overlay tile necessary: {}", dsfFile);
           return;
         }
         backupOriginalDsfFile();
@@ -84,7 +84,7 @@ public class OverlayTileTransformer {
         transformed = true;
       } catch (Exception e) {
         throw new IllegalStateException(
-            String.format("Transformation of Overlay failed: %s", dsfFile), e);
+            String.format("Transformation of overlay failed: %s", dsfFile), e);
       }
     }
   }

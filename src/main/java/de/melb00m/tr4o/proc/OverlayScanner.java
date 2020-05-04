@@ -73,13 +73,13 @@ public class OverlayScanner {
         .map(baseDir -> baseDir.resolve(EARTH_NAV_DATA))
         .forEach(baseDir -> dsfPaths.addAll(getDsfFilesFromPath(baseDir)));
     LOG.debug(
-        "Tiles found in the given Overlay-directories: {}",
+        "Tiles found in the given overlay-directories: {}",
         () ->
             dsfPaths.stream()
                 .map(FileHelper::getFilenameWithoutExtension)
                 .sorted(ObjectToStringComparator.INSTANCE)
                 .toArray());
-    LOG.info("{} tiles detected in given Overlay-directories", dsfPaths.size());
+    LOG.info("{} tiles detected in given overlay-directories", dsfPaths.size());
     return Collections.unmodifiableSet(dsfPaths);
   }
 
@@ -98,7 +98,7 @@ public class OverlayScanner {
 
     // identify Ortho-tiles from the scenery_pack.ini file
     try {
-      LOG.info("Identifying Ortho-Tiles (this may take a moment)");
+      LOG.info("Identifying ortho-sceneries (this may take a moment)");
       final var orthoDirectories =
           Files.readAllLines(sceneryPacksFile).stream()
               .map(SCENERY_PACK_ENTRY_PATTERN::matcher)
@@ -108,9 +108,9 @@ public class OverlayScanner {
               .filter(this::isPotentialOrthoTilesDirectory)
               .collect(Collectors.toUnmodifiableSet());
       LOG.trace(
-          "Directories that have been auto-detected as Ortho-directories: {}",
+          "Directories that have been auto-detected as ortho-sceneries: {}",
           () -> orthoDirectories.stream().sorted().toArray());
-      LOG.info("{} Ortho-scenery directories detected in total", orthoDirectories.size());
+      LOG.info("{} directories with ortho-scenery detected in total", orthoDirectories.size());
 
       // Seach DSFs in ortho-directories to get covered tiles
       final var orthoDsfs =
@@ -120,7 +120,8 @@ public class OverlayScanner {
               .flatMap(Collection::stream)
               .collect(Collectors.toUnmodifiableSet());
       LOG.trace(
-          "DSFs found in the Ortho-directories: {}", () -> orthoDsfs.stream().sorted().toArray());
+          "DSFs found in the ortho-directories: {}", () -> orthoDsfs.stream().sorted().toArray());
+      LOG.info("{} tiles are covered with orthos", orthoDsfs.size());
 
       // Map overlay-DSFs against ortho-directories that cover that tile
       final var sceneryToOverlayMap = new HashSetValuedHashMap<Path, Path>();
@@ -156,40 +157,40 @@ public class OverlayScanner {
       return false;
     }
     if (Files.exists(dir.resolve("Transparency4Ortho.exclude"))) {
-      LOG.trace("{} is NOT an Ortho-folder as it has an 'Transparency4Ortho.exclude' file", dir);
+      LOG.trace("{} is NOT an ortho-folder as it has an 'Transparency4Ortho.exclude' file", dir);
     }
     if (Files.exists(dir.resolve("Transparency4Ortho.include"))) {
-      LOG.trace("{} is an Ortho-folder as it has an 'Transparency4Ortho.include' file", dir);
+      LOG.trace("{} is an ortho-folder as it has an 'Transparency4Ortho.include' file", dir);
     }
     if (overlayDirectories.contains(dir)) {
-      LOG.trace("{} is NOT an Ortho-folder as it is part of the given overlay-directories", dir);
+      LOG.trace("{} is NOT an ortho-folder as it is part of the given overlay-directories", dir);
       return false;
     }
     if (Files.exists(dir.resolve("library.txt"))) {
-      LOG.trace("{} is NOT an Ortho-folder as it contains a 'library.txt' file", dir);
+      LOG.trace("{} is NOT an ortho-folder as it contains a 'library.txt' file", dir);
       return false;
     }
     if (!Files.isDirectory(dir.resolve(EARTH_NAV_DATA))) {
-      LOG.trace("{} is NOT an Ortho-folder as it does not contain 'Earth nav data' folder", dir);
+      LOG.trace("{} is NOT an ortho-folder as it does not contain 'Earth nav data' folder", dir);
       return false;
     }
     // Ortho tiles never have an "apt.dat" file
     if (Files.exists(dir.resolve(EARTH_NAV_DATA).resolve("apt.dat"))) {
-      LOG.trace("{} is NOT an Ortho-folder as it has an 'apt.dat' file", dir);
+      LOG.trace("{} is NOT an ortho-folder as it has an 'apt.dat' file", dir);
       return false;
     }
     // Check for well-known Ortho folder-names
     if (dir.getFileName().toString().startsWith("zOrtho4XP_")) {
-      LOG.trace("{} is likely an Ortho-folder due to it's directory-name", dir);
+      LOG.trace("{} is likely an ortho-folder due to it's directory-name", dir);
       return true;
     }
     if (dir.getFileName().toString().startsWith("zPhotoXP_")) {
-      LOG.trace("{} is likely an Ortho-folder due to it's directory-name", dir);
+      LOG.trace("{} is likely an ortho-folder due to it's directory-name", dir);
       return true;
     }
     // Ortho4XP.cfg is also an indicator for an Ortho-tile
     if (Files.exists(dir.resolve("Ortho4XP.cfg"))) {
-      LOG.trace("{} is likely an Ortho-folder as it contains an 'Ortho4XP.cfg' file", dir);
+      LOG.trace("{} is likely an ortho-folder as it contains an 'Ortho4XP.cfg' file", dir);
       return true;
     }
     // This last check is a little more expensive, as we check for DDS tile-textures
@@ -207,12 +208,12 @@ public class OverlayScanner {
                             .matcher(dds.getFileName().toString())
                             .matches())) {
           LOG.trace(
-              "{} is likely an Ortho-fodler because all it's DDS-textures match the typical filename-format",
+              "{} is likely an ortho-folder because all it's DDS-textures match the typical filename-format",
               dir);
           return true;
         }
         LOG.trace(
-            "{} is likely NOT an Ortho-folder, as some of its DDS-textures do not match the typical filename-format",
+            "{} is likely NOT an ortho-folder, as some of its DDS-textures do not match the typical filename-format",
             dir);
         return false;
       } catch (IOException e) {
@@ -220,7 +221,7 @@ public class OverlayScanner {
       }
     }
     LOG.trace(
-        "{} is likely NOT an Ortho-folder, as nothing was found that would indicate it was", dir);
+        "{} is likely NOT an ortho-folder, as nothing was found that would indicate it was", dir);
     return false;
   }
 }

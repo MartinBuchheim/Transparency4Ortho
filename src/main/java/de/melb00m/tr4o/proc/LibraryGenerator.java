@@ -79,7 +79,7 @@ public class LibraryGenerator {
     LOG.info("Generating library at {}", libraryDefinitionFile);
     Validate.isTrue(
         Files.notExists(libraryDefinitionFile),
-        "Can't create new library.txt at %s: It already exists",
+        "Can't create new library.txt at %s: it already exists",
         libraryDefinitionFile);
 
     // find our exported files in the folder
@@ -125,15 +125,15 @@ public class LibraryGenerator {
         AppConfig.getApplicationConfig().getLong("libgen.resources.roads.checksum");
     if (!Objects.equals(crcSource, crcExpected)) {
       LOG.debug(
-          "X-Plane Roads Library has checksum of {}, but {} is expected", crcSource, crcExpected);
+          "X-Plane roads library has checksum of {}, but {} is expected", crcSource, crcExpected);
       LOG.warn(
-          "The standard X-Plane Roads Library at '{}' seems to have been modified.",
+          "The standard X-Plane roads library at '{}' seems to have been modified.",
           roadsLibrarySourceFolder);
       LOG.warn(
-          "If you have modified this library, it is recommended to revert to the original state before proceeding.");
+          "If you have made changes to this library, it is recommended to revert to the original state before proceeding.");
       Validate.isTrue(
           AppConfig.getRunArguments().isIgnoreChecksumErrors(),
-          "Incorrect library checksum. Use '-i' parameter if you want to skip this error.");
+          "Aborting. Use '-i' parameter if you are really sure you want to skip this error.");
     }
   }
 

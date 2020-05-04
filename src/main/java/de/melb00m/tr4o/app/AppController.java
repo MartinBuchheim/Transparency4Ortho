@@ -1,10 +1,14 @@
-package de.melb00m.tr4o.proc;
+package de.melb00m.tr4o.app;
 
-import de.melb00m.tr4o.app.AppConfig;
 import de.melb00m.tr4o.helper.FileHelper;
 import de.melb00m.tr4o.helper.OutputHelper;
+import de.melb00m.tr4o.proc.LibraryGenerator;
+import de.melb00m.tr4o.proc.OverlayScanner;
+import de.melb00m.tr4o.proc.OverlayTileTransformer;
+import de.melb00m.tr4o.proc.XPToolsInterface;
 import me.tongfei.progressbar.ProgressBar;
 import org.apache.commons.collections4.MultiValuedMap;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,15 +18,15 @@ import java.util.Date;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class RunProcessor {
+public class AppController {
 
-  private static final Logger LOG = LogManager.getLogger(RunProcessor.class);
+  private static final Logger LOG = LogManager.getLogger(AppController.class);
   private final LibraryGenerator libraryGenerator = new LibraryGenerator();
   private final OverlayScanner overlayScanner = new OverlayScanner();
   private int currentStep = 0;
 
   public void startProcessing() {
-    synchronized (RunProcessor.class) {
+    synchronized (AppController.class) {
       newStep("Preparing Transparency4Ortho Library");
       libraryGenerator.validateOrCreateLibrary();
 
@@ -73,7 +77,7 @@ public class RunProcessor {
 
     ProgressBar.wrap(
             transformers.parallelStream(),
-            OutputHelper.getPreconfiguredLoggedBuilder(LOG).setTaskName("Transforming"))
+            OutputHelper.getAutoPreconfiguredBuilder(Level.TRACE, LOG).setTaskName("Transforming"))
         .forEach(OverlayTileTransformer::runTransformation);
 
     // check which tiles have been transformed
@@ -95,7 +99,8 @@ public class RunProcessor {
   }
 
   private void userConfirmDetectedOrthos(final MultiValuedMap<Path, Path> sceneryToOverlayMap) {
-    LOG.info("The following Ortho-Folders have been auto-detected as relevant for the tiles:");
+    LOG.info("The following ortho-sceneries are covering tiles that are part of the given overlays with ortho-imagery.");
+    LOG.info("These tiles will be modified to use the Transparency4Ortho library to make rural roads transparent.");
     sceneryToOverlayMap.keySet().stream()
         .sorted()
         .forEach(
@@ -112,6 +117,6 @@ public class RunProcessor {
         false,
         () -> "Does the above look okay to you?",
         () ->
-            "Please check the documentation for more information about influencing Ortho auto-detection.");
+            "Please check the documentation for more information about controlling the ortho-scenery auto-detection.");
   }
 }
