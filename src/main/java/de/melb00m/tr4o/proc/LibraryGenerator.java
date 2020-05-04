@@ -58,7 +58,7 @@ public class LibraryGenerator {
     this.modifyUncommentRoadFiles =
         AppConfig.getApplicationConfig()
             .getStringList("libgen.modifications.roads.uncomment.target-files").stream()
-            .map(fileName -> xplanePath.resolve(fileName))
+            .map(xplanePath::resolve)
             .collect(Collectors.toUnmodifiableSet());
   }
 

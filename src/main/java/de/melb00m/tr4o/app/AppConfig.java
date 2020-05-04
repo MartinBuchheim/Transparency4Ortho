@@ -49,7 +49,7 @@ public final class AppConfig {
 
   private RunArguments readAndVerifyArguments(final CommandLine line) {
     final var args = line.getArgList();
-    Validate.isTrue(args.size() >= 1, "Missing X-Plane folder argument");
+    Validate.isTrue(!args.isEmpty(), "Missing X-Plane folder argument");
 
     final var xPlanePath = Path.of(args.get(0));
     final var overlayPaths =
