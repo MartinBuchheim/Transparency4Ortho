@@ -12,6 +12,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -48,19 +49,20 @@ public final class AppConfig {
 
   private RunArguments readAndVerifyArguments(final CommandLine line) {
     final var args = line.getArgList();
-    Validate.isTrue(args.size() >= 2, "Expecting at least 2 path-parameters with application call");
+    Validate.isTrue(args.size() >= 1, "Missing X-Plane folder argument");
 
     final var xPlanePath = Path.of(args.get(0));
     final var overlayPaths =
-        args.subList(1, args.size()).stream()
-            .map(Paths::get)
-            .collect(Collectors.toUnmodifiableSet());
+        args.size() <= 1
+            ? Collections.<Path>emptySet()
+            : args.subList(1, args.size()).stream()
+                .map(Paths::get)
+                .collect(Collectors.toUnmodifiableSet());
     final var dsfToolExec = getOptionalPath("dsf");
     final var backupPath = getOptionalPath("b");
 
     Validate.isTrue(
         Files.isReadable(xPlanePath), "X-Plane location '%s' is not readable", xPlanePath);
-    Validate.isTrue(!overlayPaths.isEmpty(), "No Overlay-Paths have been given");
     overlayPaths.forEach(
         path -> Validate.isTrue(Files.isReadable(path), "Overlay-path '%s' is not readable", path));
     dsfToolExec.ifPresent(

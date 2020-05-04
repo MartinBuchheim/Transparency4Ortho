@@ -38,7 +38,8 @@ public class Transparency4Ortho {
       }
 
       AppConfig.initialize(line);
-      new AppController().startProcessing();
+      new AppController(line.hasOption("r") ? AppMode.REGENERATE_LIBRARY : AppMode.OVERLAY_TRANSFORMATION)
+          .startProcessing();
 
     } catch (IllegalArgumentException | ParseException ex) {
       stopWithError(ex, true);
@@ -59,7 +60,7 @@ public class Transparency4Ortho {
     new HelpFormatter()
         .printHelp(
             120,
-            "TransparentRoads4Ortho [options] <path-to-xplane> <path-to-overlays> [<path-to-overlays> ...]",
+            "TransparentRoads4Ortho [options] <path-to-xplane> [<path-to-overlays> [<path-to-overlays> ...]]",
             "",
             options,
             "");
@@ -67,6 +68,11 @@ public class Transparency4Ortho {
 
   private static Options generateCliOptions() {
     return new Options()
+        .addOption(
+            "r",
+            "regenerateLibrary",
+            false,
+            "(Re-) Generate the Transparency4Ortho library only. Will not transform any overlays.")
         .addOption(
             "s",
             "skipModifications",
