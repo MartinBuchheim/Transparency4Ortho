@@ -62,26 +62,45 @@ public class LibraryGenerator {
             .collect(Collectors.toUnmodifiableSet());
   }
 
-  public void validateOrCreateLibrary() {
+  public boolean validateOrCreateLibrary() {
     synchronized (this) {
       try {
         if (Files.exists(libraryDefinitionFile)) {
           validateExistingLibrary();
-        } else {
-          Validate.isTrue(
-              Files.exists(roadsLibrarySourceFolder),
-              "Can't find X-Plane default roads-library at expected location: %s",
-              roadsLibrarySourceFolder);
-          validateRoadsLibraryChecksum();
-          copyLibraryFolder();
-          applyLibraryModifications();
-          generateLibraryTxt();
+          return false;
         }
+        createLibrary();
+        return true;
       } catch (IOException e) {
         throw new IllegalStateException(
             String.format("There was a problem initializing the library at: %s", libraryFolder), e);
       }
     }
+  }
+
+  public void regenerateLibrary() {
+    LOG.info("Regenerating library at: {}", libraryFolder);
+    try {
+      if (Files.exists(libraryFolder)) {
+        LOG.debug("Deleting existing library at: {}", libraryFolder);
+        FileHelper.deleteRecursively(libraryFolder, Collections.emptySet());
+      }
+      createLibrary();
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Failed to regenerate library at: %s", libraryFolder), e);
+    }
+  }
+
+  private void createLibrary() throws IOException {
+    Validate.isTrue(
+        Files.exists(roadsLibrarySourceFolder),
+        "Can't find X-Plane default roads-library at expected location: %s",
+        roadsLibrarySourceFolder);
+    validateRoadsLibraryChecksum();
+    copyLibraryFolder();
+    applyLibraryModifications();
+    generateLibraryTxt();
   }
 
   private void applyLibraryModifications() {
@@ -223,5 +242,9 @@ public class LibraryGenerator {
   private String buildExportDirective(final String exportName, final Path fileLocation) {
     final var relativePath = libraryFolder.relativize(fileLocation).toString().replace('\\', '/');
     return String.format(EXPORT_DIRECTIVE, libraryPrefix, exportName, relativePath);
+  }
+
+  public Path getLibraryFolder() {
+    return libraryFolder;
   }
 }
