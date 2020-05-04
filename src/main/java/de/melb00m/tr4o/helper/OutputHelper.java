@@ -29,7 +29,8 @@ public final class OutputHelper {
     return getPreconfiguredBuilder().setConsumer(new DelegatingProgressBarConsumer(logger::info));
   }
 
-  public static ProgressBarBuilder getAutoPreconfiguredBuilder(final Level threshold, final Logger logger) {
+  public static ProgressBarBuilder getAutoPreconfiguredBuilder(
+      final Level threshold, final Logger logger) {
     if (threshold.isMoreSpecificThan(AppConfig.getRunArguments().getConsoleLogLevel())) {
       return getPreconfiguredLoggedBuilder(logger);
     }
@@ -73,7 +74,7 @@ public final class OutputHelper {
   }
 
   @SuppressWarnings("java:S106")
-  private static String readLineFromConsole(final String formatted, Object... replacements) {
+  public static String readLineFromConsole(final String formatted, Object... replacements) {
     if (System.console() != null) {
       return System.console().readLine(formatted, replacements);
     }
@@ -84,7 +85,7 @@ public final class OutputHelper {
   }
 
   @SuppressWarnings("java:S106")
-  private static void writeLinesToConsole(final String... lines) {
+  public static void writeLinesToConsole(final String... lines) {
     final var writer =
         System.console() != null ? System.console().writer() : new PrintWriter(System.out);
     Arrays.stream(lines).forEach(writer::println);

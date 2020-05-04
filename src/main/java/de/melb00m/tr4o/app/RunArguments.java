@@ -18,12 +18,14 @@ public final class RunArguments {
   private final Optional<Path> dsfToolExecutable;
   private final Optional<Path> backupPath;
   private final Level consoleLogLevel;
+  private final boolean skipLibraryModifications;
   private final boolean ignoreChecksumErrors;
   private final boolean forbidAutoDownload;
 
   public RunArguments(
       Path xPlanePath,
       Set<Path> overlaysPath,
+      boolean skipLibraryModifications,
       Optional<Path> dsfToolExecutable,
       Level consoleLogLevel,
       boolean ignoreChecksumErrors,
@@ -36,6 +38,7 @@ public final class RunArguments {
     this.ignoreChecksumErrors = ignoreChecksumErrors;
     this.forbidAutoDownload = forbidAutoDownload;
     this.backupPath = backupPath;
+    this.skipLibraryModifications = skipLibraryModifications;
   }
 
   public Path getXPlanePath() {
@@ -64,5 +67,9 @@ public final class RunArguments {
 
   public Optional<Path> getBackupPath() {
     return backupPath;
+  }
+
+  public boolean isSkipLibraryModifications() {
+    return skipLibraryModifications;
   }
 }
