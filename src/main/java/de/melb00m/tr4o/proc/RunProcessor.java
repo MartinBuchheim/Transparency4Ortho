@@ -86,7 +86,7 @@ public class RunProcessor {
     LOG.info(
         "{} Overlay tiles have been transformed, {} remained untouched.",
         transformedTiles.size(),
-        transformers.size());
+        transformers.size() - transformedTiles.size());
     if (!transformedTiles.isEmpty()) {
       LOG.info("Backups have been stored in {}", backupFolder);
     }
@@ -105,8 +105,7 @@ public class RunProcessor {
                       .map(FileHelper::getFilenameWithoutExtension)
                       .sorted()
                       .collect(Collectors.joining(", "));
-              LOG.info("> {}  [Tiles: {}]", scenery.getFileName(), tilesList);
-              LOG.debug("       Included Tiles: {}", tilesList);
+              LOG.info("    >> {}  [Tiles: {}]", scenery.getFileName(), tilesList);
             });
 
     OutputHelper.confirmYesOrExit(

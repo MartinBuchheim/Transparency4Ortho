@@ -62,7 +62,7 @@ public class Transparency4Ortho {
     new HelpFormatter()
         .printHelp(
             120,
-            "TransparentRoads4Ortho [options] <path-to-xplane> <path-to-overlays> <path-to-tiles> [<path-to-tiles> ...]",
+            "TransparentRoads4Ortho [options] <path-to-xplane> <path-to-overlays> [<path-to-overlays> ...]",
             "",
             options,
             "");
