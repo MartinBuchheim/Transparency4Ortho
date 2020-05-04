@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -59,6 +60,11 @@ public class LibraryGenerator {
         if (Files.exists(libraryDefinitionFile)) {
           validateExistingLibrary();
         } else {
+          Validate.isTrue(
+              Files.exists(roadsLibrarySourceFolder),
+              "Can't find X-Plane default roads-library at expected location: %s",
+              roadsLibrarySourceFolder);
+          validateRoadsLibraryChecksum();
           copyLibraryFolder();
           generateLibraryTxt();
         }
@@ -74,7 +80,7 @@ public class LibraryGenerator {
     Validate.isTrue(
         Files.notExists(libraryDefinitionFile),
         "Can't create new library.txt at %s: It already exists",
-            libraryDefinitionFile);
+        libraryDefinitionFile);
 
     // find our exported files in the folder
     final var filesToExport =
@@ -84,12 +90,12 @@ public class LibraryGenerator {
         export -> {
           Validate.isTrue(
               filesToExport.containsKey(export),
-              "No file named '%s' for export in library.txt found in library: {}",
+              "No file named '%s' for export in library.txt found in library: %s",
               export,
               roadLibraryTargetFolder);
           Validate.isTrue(
               filesToExport.get(export).size() == 1,
-              "More than one file named '%s' found in copied library: {}",
+              "More than one file named '%s' found in copied library: %s",
               export,
               roadLibraryTargetFolder);
         });
@@ -105,10 +111,6 @@ public class LibraryGenerator {
 
   private void copyLibraryFolder() throws IOException {
     LOG.info("Copying X-Plane default roads-library to {}", libraryFolder);
-    Validate.isTrue(
-        Files.exists(roadsLibrarySourceFolder),
-        "Can't find X-Plane default roads-library at expected location: {}",
-        roadsLibrarySourceFolder);
     Files.createDirectories(roadLibraryTargetFolder);
     FileHelper.copyRecursively(
         roadsLibrarySourceFolder,
@@ -117,21 +119,39 @@ public class LibraryGenerator {
         roadsLibraryExcludes.toArray(new Path[0]));
   }
 
+  private void validateRoadsLibraryChecksum() {
+    final var crcSource = FileHelper.deepCrc32(roadsLibrarySourceFolder);
+    final var crcExpected =
+        AppConfig.getApplicationConfig().getLong("libgen.resources.roads.checksum");
+    if (!Objects.equals(crcSource, crcExpected)) {
+      LOG.debug(
+          "X-Plane Roads Library has checksum of {}, but {} is expected", crcSource, crcExpected);
+      LOG.warn(
+          "The standard X-Plane Roads Library at '{}' seems to have been modified.",
+          roadsLibrarySourceFolder);
+      LOG.warn(
+          "If you have modified this library, it is recommended to revert to the original state before proceeding.");
+      Validate.isTrue(
+          AppConfig.getRunArguments().isIgnoreChecksumErrors(),
+          "Incorrect library checksum. Use '-i' parameter if you want to skip this error.");
+    }
+  }
+
   private void validateExistingLibrary() throws IOException {
-    LOG.info("Verifying that the existing library at {} can be used...", libraryFolder);
+    LOG.info("Verifying that the existing library at {} can be used", libraryFolder);
     Validate.isTrue(
         Files.isReadable(libraryDefinitionFile),
-        "Can't read the 'library.txt' file in the existing library: {}",
-            libraryDefinitionFile);
+        "Can't read the 'library.txt' file in the existing library: %s",
+        libraryDefinitionFile);
     final var containedLines = Files.readAllLines(libraryDefinitionFile);
     roadsLibraryExportDefinitions.forEach(
         exp -> {
           final var expSearch = String.format(EXPORT_DIRECTIVE, libraryPrefix, exp, "");
           Validate.isTrue(
               containedLines.stream().anyMatch(line -> line.startsWith(expSearch)),
-              "Could not find expected export '{}' in existing library: {}",
+              "Could not find expected export '%s' in existing library: %s",
               expSearch,
-                  libraryDefinitionFile);
+              libraryDefinitionFile);
         });
   }
 

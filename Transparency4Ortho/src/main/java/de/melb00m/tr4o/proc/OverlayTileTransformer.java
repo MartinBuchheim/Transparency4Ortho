@@ -7,6 +7,8 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -39,6 +41,24 @@ public class OverlayTileTransformer {
             dsfFile.getParent().getParent().getParent().getParent().relativize(dsfFile));
     this.libraryName = libraryName;
     this.xpToolsInterface = xpToolsInterface;
+  }
+
+  public static Set<OverlayTileTransformer> buildTransformers(final Set<Path> overlayTiles) {
+    final var backupFolder =
+        AppConfig.getRunArguments()
+            .getBackupPath()
+            .orElseGet(
+                () ->
+                    Path.of(
+                        AppConfig.getApplicationConfig()
+                            .getString("overlay-scanner.backup-folder")))
+            .resolve(new SimpleDateFormat("yyyy-MM-dd HH-mm-ss").format(new Date()));
+    final var libraryName =
+        AppConfig.getApplicationConfig().getString("overlay-scanner.library-prefix");
+    final var xpTools = new XPToolsInterface();
+    return overlayTiles.stream()
+        .map(tile -> new OverlayTileTransformer(tile, backupFolder, libraryName, xpTools))
+        .collect(Collectors.toUnmodifiableSet());
   }
 
   void runTransformation() {

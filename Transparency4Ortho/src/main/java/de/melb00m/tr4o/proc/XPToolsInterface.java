@@ -28,15 +28,15 @@ public class XPToolsInterface {
   private static final Logger LOG = LogManager.getLogger(XPToolsInterface.class);
 
   private final AtomicReference<Path> dsfExecutable = new AtomicReference<>();
-  private final boolean attemptAutoDownload;
   private final Path temporaryFolder;
+  private final Path binariesFolder;
 
-  XPToolsInterface(boolean attemptAutoDownload) {
-    this.attemptAutoDownload = attemptAutoDownload;
+  XPToolsInterface() {
     this.temporaryFolder =
         FileHelper.createAutoCleanedTempDir(
             Path.of(AppConfig.getApplicationConfig().getString("xptools.tmp-folder")),
             Optional.empty());
+    this.binariesFolder = Path.of(AppConfig.getApplicationConfig().getString("xptools.bin-folder"));
   }
 
   private static URL getDownloadUrlForOS() throws MalformedURLException {
@@ -59,9 +59,26 @@ public class XPToolsInterface {
   private Path getDSFExecutable() {
     synchronized (dsfExecutable) {
       if (dsfExecutable.get() == null) {
+        // try to fetch from run-args first
+        var dsfToolExecutable = AppConfig.getRunArguments().getDsfToolExecutable();
+        // if no run-arg given, try to use DSFtool in binaries folder, or attempt auto download
+        if (dsfToolExecutable.isEmpty()) {
+          final var dsfExecutableNames =
+              AppConfig.getApplicationConfig().getStringList("xptools.executables.dsftool");
+          dsfToolExecutable =
+              getFirstMatchingExecutable(dsfExecutableNames)
+                  .or(
+                      () -> {
+                        attemptAutomaticDownloadOfXpTools(binariesFolder);
+                        return getFirstMatchingExecutable(dsfExecutableNames);
+                      });
+        }
+        dsfToolExecutable.ifPresent(
+            exec ->
+                Validate.isTrue(Files.isExecutable(exec), "DSFTool is not executable: %s", exec));
         dsfExecutable.set(
-            getFirstMatchingExecutable(
-                AppConfig.getApplicationConfig().getStringList("xptools.executables.dsftool")));
+            dsfToolExecutable.orElseThrow(
+                () -> new IllegalStateException("Failed to retrieve DSFTool")));
       }
     }
     return dsfExecutable.get();
@@ -74,7 +91,7 @@ public class XPToolsInterface {
                 toProcessFile(getDSFExecutable()), "--dsf2text", toProcessFile(dsfFile), "-")
             .start();
     try (final var input = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-      return String.join(System.lineSeparator(), input.lines().collect(Collectors.toList()));
+      return input.lines().collect(Collectors.joining(System.lineSeparator()));
     }
   }
 
@@ -91,39 +108,19 @@ public class XPToolsInterface {
     }
   }
 
-  private Path getFirstMatchingExecutable(final Collection<String> execNames) {
+  private Optional<Path> getFirstMatchingExecutable(final Collection<String> execNames) {
     synchronized (XPToolsInterface.class) {
-      final var binariesPath =
-          AppConfig.getRunArguments()
-              .getXpToolsPath()
-              .orElseGet(
-                  () -> Path.of(AppConfig.getApplicationConfig().getString("xptools.bin-folder")));
-      final var executables =
-          execNames.stream().map(binariesPath::resolve).collect(Collectors.toSet());
-
-      // If an executable is already present, return it
-      return executables.stream()
+      return execNames.stream()
+          .map(binariesFolder::resolve)
           .filter(Files::isExecutable)
-          .findFirst()
-          .orElseGet(
-              () -> {
-                Validate.isTrue(
-                    attemptAutoDownload, "XPTools not found and automatic download disabled");
-                attemptAutomaticDownload(binariesPath);
-                return executables.stream()
-                    .filter(Files::isExecutable)
-                    .findFirst()
-                    .orElseThrow(
-                        () ->
-                            new IllegalStateException(
-                                String.format(
-                                    "Failed to locate DSFTool in binaries location at: %s",
-                                    binariesPath)));
-              });
+          .findFirst();
     }
   }
 
-  private void attemptAutomaticDownload(final Path targetFolder) {
+  private void attemptAutomaticDownloadOfXpTools(final Path targetFolder) {
+    Validate.isTrue(
+        !AppConfig.getRunArguments().isForbidAutoDownload(),
+        "XPTools not found and automatic download disabled");
     try {
       final var downloadUrl = getDownloadUrlForOS();
       LOG.info(
@@ -134,7 +131,7 @@ public class XPToolsInterface {
       final var dlTarget =
           temporaryFolder.resolve(FileHelper.extractFileNameFromPath(downloadUrl.getFile()));
       FileHelper.downloadFile(downloadUrl, dlTarget);
-      LOG.debug("Download finished successfully");
+      LOG.info("Download finished successfully");
 
       // Copy DSFTool and DDSTool from ZIP to target folder
       final var executablesToKeep =
