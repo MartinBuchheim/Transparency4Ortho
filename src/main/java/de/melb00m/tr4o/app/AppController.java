@@ -77,7 +77,7 @@ public class AppController {
 
     ProgressBar.wrap(
             transformers.parallelStream(),
-            OutputHelper.getAutoPreconfiguredBuilder(Level.TRACE, LOG).setTaskName("Transforming"))
+            OutputHelper.getPreconfiguredAutoProgressBarBuilder(Level.TRACE, LOG).setTaskName("Transforming"))
         .forEach(OverlayTileTransformer::runTransformation);
 
     // check which tiles have been transformed

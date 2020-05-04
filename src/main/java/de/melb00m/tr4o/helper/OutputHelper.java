@@ -21,20 +21,20 @@ public final class OutputHelper {
 
   private OutputHelper() {}
 
-  public static ProgressBarBuilder getPreconfiguredBuilder() {
+  public static ProgressBarBuilder getPreconfiguredProgressBarBuilder() {
     return new ProgressBarBuilder().setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(250);
   }
 
-  public static ProgressBarBuilder getPreconfiguredLoggedBuilder(final Logger logger) {
-    return getPreconfiguredBuilder().setConsumer(new DelegatingProgressBarConsumer(logger::info));
+  public static ProgressBarBuilder getPreconfiguredLoggedProgressBarBuilder(final Logger logger) {
+    return getPreconfiguredProgressBarBuilder().setConsumer(new DelegatingProgressBarConsumer(logger::info));
   }
 
-  public static ProgressBarBuilder getAutoPreconfiguredBuilder(
+  public static ProgressBarBuilder getPreconfiguredAutoProgressBarBuilder(
       final Level threshold, final Logger logger) {
     if (threshold.isMoreSpecificThan(AppConfig.getRunArguments().getConsoleLogLevel())) {
-      return getPreconfiguredLoggedBuilder(logger);
+      return getPreconfiguredLoggedProgressBarBuilder(logger);
     }
-    return getPreconfiguredBuilder();
+    return getPreconfiguredProgressBarBuilder();
   }
 
   public static void confirmYesNo(
@@ -78,9 +78,7 @@ public final class OutputHelper {
     if (System.console() != null) {
       return System.console().readLine(formatted, replacements);
     }
-    final var writer = new PrintWriter(System.out);
-    writer.println(String.format(formatted, replacements));
-    writer.flush();
+    writeLinesToConsole(String.format(formatted, replacements));
     return new Scanner(System.in).nextLine();
   }
 
