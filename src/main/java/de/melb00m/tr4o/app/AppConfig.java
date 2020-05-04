@@ -64,8 +64,8 @@ public final class AppConfig {
     overlayPaths.forEach(
         path ->
             Validate.isTrue(
-                Files.isReadable(path.resolve("Earth nav data")),
-                "Overlay-Path '%s' does not contain expected 'Earth nav data' folder",
+                Files.isReadable(path),
+                "Overlay-path '%s' is not readable",
                 path));
     dsfToolExec.ifPresent(
         dx -> Validate.isTrue(Files.isExecutable(dx), "DSFTool at '%s' is not executable", dx));

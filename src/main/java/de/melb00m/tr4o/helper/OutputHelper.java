@@ -1,8 +1,10 @@
 package de.melb00m.tr4o.helper;
 
+import de.melb00m.tr4o.app.AppConfig;
 import me.tongfei.progressbar.DelegatingProgressBarConsumer;
 import me.tongfei.progressbar.ProgressBarBuilder;
 import me.tongfei.progressbar.ProgressBarStyle;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 
 import java.io.PrintWriter;
@@ -25,6 +27,13 @@ public final class OutputHelper {
 
   public static ProgressBarBuilder getPreconfiguredLoggedBuilder(final Logger logger) {
     return getPreconfiguredBuilder().setConsumer(new DelegatingProgressBarConsumer(logger::info));
+  }
+
+  public static ProgressBarBuilder getAutoPreconfiguredBuilder(final Level threshold, final Logger logger) {
+    if (threshold.isMoreSpecificThan(AppConfig.getRunArguments().getConsoleLogLevel())) {
+      return getPreconfiguredLoggedBuilder(logger);
+    }
+    return getPreconfiguredBuilder();
   }
 
   public static void confirmYesNo(

@@ -1,6 +1,5 @@
 package de.melb00m.tr4o.app;
 
-import de.melb00m.tr4o.proc.RunProcessor;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
@@ -41,7 +40,7 @@ public class Transparency4Ortho {
       }
 
       AppConfig.initialize(line);
-      new RunProcessor().startProcessing();
+      new AppController().startProcessing();
 
     } catch (IllegalArgumentException | ParseException ex) {
       stopWithError(ex, true);

@@ -31,12 +31,14 @@ public class XPToolsInterface {
   private final Path temporaryFolder;
   private final Path binariesFolder;
 
-  XPToolsInterface() {
+  public XPToolsInterface() {
     this.temporaryFolder =
         FileHelper.createAutoCleanedTempDir(
             Path.of(AppConfig.getApplicationConfig().getString("xptools.tmp-folder")),
             Optional.empty());
     this.binariesFolder = Path.of(AppConfig.getApplicationConfig().getString("xptools.bin-folder"));
+    // this is a hack to download the XPTools right away once this is created
+    getDSFExecutable();
   }
 
   private static URL getDownloadUrlForOS() throws MalformedURLException {
@@ -85,7 +87,7 @@ public class XPToolsInterface {
   }
 
   public String dsfToText(final Path dsfFile) throws IOException {
-    Validate.isTrue(Files.isReadable(dsfFile), "Given DSFFile is not readable: %s", dsfFile);
+    Validate.isTrue(Files.isReadable(dsfFile), "Given DSF file is not readable: %s", dsfFile);
     final var process =
         new ProcessBuilder(
                 toProcessFile(getDSFExecutable()), "--dsf2text", toProcessFile(dsfFile), "-")
@@ -124,7 +126,7 @@ public class XPToolsInterface {
     try {
       final var downloadUrl = getDownloadUrlForOS();
       LOG.info(
-          "Attempting automatic download of XPTools from X-Plane Developer site at: {}",
+          "Attempting automatic download of XPTools from X-Plane developer site at: {}",
           downloadUrl);
 
       // download zipped XPTools from X-Plane developer site
@@ -153,7 +155,7 @@ public class XPToolsInterface {
         }
       }
     } catch (IOException e) {
-      throw new IllegalStateException("Failed to auto-download XPTools", e);
+      throw new IllegalStateException("Failed to auto-prepare XPTools", e);
     }
   }
 }
