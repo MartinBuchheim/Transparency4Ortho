@@ -1,7 +1,7 @@
-package de.melb00m.tr4o.proc;
+package de.melb00m.tr4o.library;
 
-import de.melb00m.tr4o.app.AppConfig;
-import de.melb00m.tr4o.helper.Exceptions;
+import de.melb00m.tr4o.app.Transparency4Ortho;
+import de.melb00m.tr4o.helper.ExceptionHelper;
 import de.melb00m.tr4o.helper.FileHelper;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
@@ -22,10 +22,11 @@ public class LibraryGenerator {
 
   private static final Logger LOG = LogManager.getLogger(LibraryGenerator.class);
   private static final String EXPORT_DIRECTIVE =
-      AppConfig.getApplicationConfig().getString("libgen.library.export-directive");
+      Transparency4Ortho.CONFIG.getString("libgen.library.export-directive");
   private static final List<String> LIB_TXT_HEADERS =
-      AppConfig.getApplicationConfig().getStringList("libgen.library.txt-header");
+      Transparency4Ortho.CONFIG.getStringList("libgen.library.txt-header");
 
+  private final Transparency4Ortho command;
   private final String libraryPrefix;
   private final Path libraryFolder;
   private final Path libraryDefinitionFile;
@@ -35,31 +36,25 @@ public class LibraryGenerator {
   private final Set<String> roadsLibraryExportDefinitions;
   private final Set<Path> modifyUncommentRoadFiles;
 
-  public LibraryGenerator() {
-    final var xplanePath = AppConfig.getRunArguments().getXPlanePath();
-    this.libraryPrefix = AppConfig.getApplicationConfig().getString("libgen.library.prefix");
-    this.libraryFolder =
-        xplanePath.resolve(AppConfig.getApplicationConfig().getString("libgen.library.folder"));
+  public LibraryGenerator(final Transparency4Ortho command) {
+    this.command = command;
+    final var xplanePath = command.getXPlanePath();
+    this.libraryPrefix = command.config().getString("libgen.library.prefix");
+    this.libraryFolder = xplanePath.resolve(command.config().getString("libgen.library.folder"));
     this.libraryDefinitionFile =
-        xplanePath.resolve(
-            AppConfig.getApplicationConfig().getString("libgen.library.definition-file"));
+        xplanePath.resolve(command.config().getString("libgen.library.definition-file"));
     this.roadLibraryTargetFolder =
-        xplanePath.resolve(
-            AppConfig.getApplicationConfig().getString("libgen.resources.roads.target"));
+        xplanePath.resolve(command.config().getString("libgen.resources.roads.target"));
     this.roadsLibrarySourceFolder =
-        xplanePath.resolve(
-            AppConfig.getApplicationConfig().getString("libgen.resources.roads.source"));
+        xplanePath.resolve(command.config().getString("libgen.resources.roads.source"));
     this.roadsLibraryExcludes =
-        AppConfig.getApplicationConfig()
-            .getStringList("libgen.resources.roads.duplication.ignore-files").stream()
+        command.config().getStringList("libgen.resources.roads.duplication.ignore-files").stream()
             .map(xplanePath::resolve)
             .collect(Collectors.toSet());
     this.roadsLibraryExportDefinitions =
-        Set.copyOf(
-            AppConfig.getApplicationConfig().getStringList("libgen.resources.roads.exports"));
+        Set.copyOf(command.config().getStringList("libgen.resources.roads.exports"));
     this.modifyUncommentRoadFiles =
-        AppConfig.getApplicationConfig()
-            .getStringList("libgen.modifications.roads.uncomment.target-files").stream()
+        command.config().getStringList("libgen.modifications.roads.uncomment.target-files").stream()
             .map(xplanePath::resolve)
             .collect(Collectors.toUnmodifiableSet());
   }
@@ -111,8 +106,7 @@ public class LibraryGenerator {
 
   private void validateRoadsLibraryChecksum() {
     final var crcSource = FileHelper.deepCrc32(roadsLibrarySourceFolder);
-    final var crcExpected =
-        AppConfig.getApplicationConfig().getLong("libgen.resources.roads.checksum");
+    final var crcExpected = command.config().getLong("libgen.resources.roads.checksum");
     if (!Objects.equals(crcSource, crcExpected)) {
       LOG.debug(
           "X-Plane roads library has checksum of {}, but {} is expected", crcSource, crcExpected);
@@ -122,7 +116,7 @@ public class LibraryGenerator {
       LOG.warn(
           "If you have made changes to this library, it is recommended to revert to the original state before proceeding.");
       Validate.isTrue(
-          AppConfig.getRunArguments().isIgnoreChecksumErrors(),
+          command.isIgnoreChecksumErrors(),
           "Aborting. Use '-i' parameter if you are really sure you want to skip this error.");
     }
   }
@@ -138,22 +132,21 @@ public class LibraryGenerator {
   }
 
   private void applyLibraryModifications() {
-    if (AppConfig.getRunArguments().isSkipLibraryModifications()) {
+    if (command.isSkipLibraryModifications()) {
       LOG.info("Skipping automatic library modifications");
       return;
     }
     LOG.info("Applying modifications for transparent roads");
     final var uncommentStartingWith =
-        AppConfig.getApplicationConfig()
-            .getStringList("libgen.modifications.roads.uncomment.lines-starting-with").stream()
+        command.config().getStringList("libgen.modifications.roads.uncomment.lines-starting-with")
+            .stream()
             .collect(Collectors.toUnmodifiableSet());
     final var groupPattern =
         Pattern.compile(
-            AppConfig.getApplicationConfig()
-                .getString("libgen.modifications.roads.uncomment.groups-regex"));
+            command.config().getString("libgen.modifications.roads.uncomment.groups-regex"));
     final var uncommentEnabledGroups =
-        AppConfig.getApplicationConfig()
-            .getStringList("libgen.modifications.roads.uncomment.groups-enabled").stream()
+        command.config().getStringList("libgen.modifications.roads.uncomment.groups-enabled")
+            .stream()
             .collect(Collectors.toUnmodifiableSet());
     try {
       for (final var fileToModify : modifyUncommentRoadFiles) {
@@ -189,7 +182,7 @@ public class LibraryGenerator {
         }
       }
     } catch (IOException e) {
-      throw Exceptions.uncheck(e);
+      throw ExceptionHelper.uncheck(e);
     }
   }
 

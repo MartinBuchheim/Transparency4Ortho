@@ -9,7 +9,7 @@ public final class CollectionHelper {
 
   private CollectionHelper() {}
 
-  public static <K, V> Map<K, V> filteredMapKeys(final Map<K, V> map, Predicate<K>... filters) {
+  public static <K, V> Map<K, V> filterMapByKeys(final Map<K, V> map, Predicate<K>... filters) {
     return map.entrySet().stream()
         .filter(entry -> Arrays.stream(filters).allMatch(pred -> pred.test(entry.getKey())))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));

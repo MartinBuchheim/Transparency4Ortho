@@ -1,12 +1,12 @@
-package de.melb00m.tr4o.app;
+package de.melb00m.tr4o.app.subcommands;
 
+import de.melb00m.tr4o.app.Transparency4Ortho;
 import de.melb00m.tr4o.helper.OutputHelper;
-import de.melb00m.tr4o.proc.LibraryGenerator;
-import de.melb00m.tr4o.proc.OverlayScanner;
-import de.melb00m.tr4o.proc.OverlayScannerResult;
-import de.melb00m.tr4o.proc.OverlayTileTransformer;
-import de.melb00m.tr4o.proc.XPToolsInterface;
-import me.tongfei.progressbar.ProgressBar;
+import de.melb00m.tr4o.library.LibraryGenerator;
+import de.melb00m.tr4o.overlay.OverlayScanner;
+import de.melb00m.tr4o.overlay.OverlayScannerResult;
+import de.melb00m.tr4o.overlay.OverlayTileTransformer;
+import de.melb00m.tr4o.xptools.XPToolsInterface;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,70 +15,50 @@ import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-public class AppController {
+public class OverlayTransformation implements Runnable {
 
-  public static final String GITHUB_URL =
-      AppConfig.getApplicationConfig().getString("general.github-url");
-  private static final Logger LOG = LogManager.getLogger(AppController.class);
-  private final LibraryGenerator libraryGenerator = new LibraryGenerator();
-  private final OverlayScanner overlayScanner = new OverlayScanner();
-  private final AppMode mode;
+  private static final String GITHUB_URL =
+      Transparency4Ortho.CONFIG.getString("general.github-url");
+  private static final Logger LOG = LogManager.getLogger(OverlayTransformation.class);
+  private final LibraryGenerator libraryGenerator;
+  private final OverlayScanner overlayScanner;
+  private final Transparency4Ortho command;
   private int currentStep = 0;
 
-  public AppController(AppMode mode) {
-    this.mode = mode;
+  public OverlayTransformation(final Transparency4Ortho command) {
+    this.command = command;
+    this.libraryGenerator = new LibraryGenerator(command);
+    this.overlayScanner = new OverlayScanner(command);
   }
 
-  public void startProcessing() {
-    synchronized (AppController.class) {
-      switch (mode) {
-        case OVERLAY_TRANSFORMATION:
-          runOverlayTransformationProcess();
-          break;
-        case REGENERATE_LIBRARY:
-          runLibraryRegenerationProcess();
-          break;
-      }
-    }
-  }
-
-  private void runOverlayTransformationProcess() {
-    newStep("Preparing Transparency4Ortho Library");
+  @Override
+  public void run() {
+    nextStep("Preparing Transparency4Ortho Library");
     final var newLibraryCreated = libraryGenerator.validateOrCreateLibrary();
 
-    newStep("Scanning Overlay- and Ortho-Tiles");
+    nextStep("Scanning Overlay- and Ortho-Tiles");
     final var scannerResult = overlayScanner.scanOverlaysAndOrthos();
     if (scannerResult.getIntersectingTiles().isEmpty()) {
       LOG.info("No tiles found that need to be processed.");
       return;
     }
-    LOG.debug(
-        "Following tiles have overlays and orthos present: {}",
-        () ->
-            scannerResult.getIntersectingTiles().stream()
-                .sorted()
-                .collect(Collectors.joining(",")));
+    LOG.debug("Following tiles have both, overlays and orthos, present:");
+    OutputHelper.joinLinesByTotalLength(
+            90, ", ", new TreeSet<>(scannerResult.getIntersectingTiles()))
+        .forEach(out -> LOG.debug("    {}", out));
 
-    newStep("Transforming Overlays");
+    nextStep("Transforming Overlays");
     userConfirmDetectedOrthos(scannerResult);
     startOverlayTransformation(scannerResult.getIntersectingOverlayDsfs());
 
-    newStep("Final Words");
+    nextStep("Final Words");
     printFinalWords(newLibraryCreated);
   }
 
-  private void runLibraryRegenerationProcess() {
-    LOG.warn(
-        "This will completely remove and re-create the Transparency4Ortho library under '{}'",
-        libraryGenerator.getLibraryFolder());
-    OutputHelper.confirmYesOrExit(true, () -> "Proceed with re-generation?", () -> "Aborted.");
-    libraryGenerator.regenerateLibrary();
-    LOG.info("Library re-generation complete.");
-  }
-
-  private void newStep(final String name) {
+  private void nextStep(final String name) {
     currentStep += 1;
     LOG.info(
         "=====================================================================================================");
@@ -119,34 +99,26 @@ public class AppController {
   }
 
   private Set<Path> startOverlayTransformation(final Set<Path> overlaysToTransform) {
-
     final var backupFolder =
-        AppConfig.getRunArguments()
+        command
             .getBackupPath()
             .orElseGet(
                 () ->
-                    AppConfig.getRunArguments()
+                    command
                         .getXPlanePath()
-                        .resolve(
-                            AppConfig.getApplicationConfig()
-                                .getString("overlay-scanner.backup-folder")))
+                        .resolve(command.config().getString("overlay-scanner.backup-folder")))
             .resolve(new SimpleDateFormat("yyyy-MM-dd HH-mm-ss").format(new Date()));
-    final var libraryName =
-        AppConfig.getApplicationConfig().getString("overlay-scanner.library-prefix");
+    final var libraryName = command.config().getString("overlay-scanner.library-prefix");
 
-    final var xpTools = new XPToolsInterface();
+    final var xpTools = new XPToolsInterface(command);
     final var transformers =
         overlaysToTransform.stream()
             .map(tile -> new OverlayTileTransformer(tile, backupFolder, libraryName, xpTools))
             .collect(Collectors.toUnmodifiableSet());
 
-    final var stream =
-        AppConfig.getRunArguments().getConsoleLogLevel().isMoreSpecificThan(Level.TRACE)
-            ? ProgressBar.wrap(
-                transformers.parallelStream(),
-                OutputHelper.getPreconfiguredProgressBarBuilder().setTaskName("Transforming"))
-            : transformers.parallelStream();
-    stream.forEach(OverlayTileTransformer::runTransformation);
+    OutputHelper.maybeShowWithProgressBar(
+            "Transforming Overlays", transformers.parallelStream(), Level.DEBUG, command)
+        .forEach(OverlayTileTransformer::run);
 
     // check which tiles have been transformed
     final Set<Path> transformedTiles =
@@ -156,7 +128,7 @@ public class AppController {
             .collect(Collectors.toUnmodifiableSet());
     LOG.trace("Tiles that have been transformed: {}", transformedTiles.toArray());
     LOG.info(
-        "{} Overlay tiles have been transformed, {} remained untouched.",
+        "{} Overlay tiles have been linked to Transparency4Ortho, {} did not need changes.",
         transformedTiles.size(),
         transformers.size() - transformedTiles.size());
     if (!transformedTiles.isEmpty()) {
@@ -172,7 +144,7 @@ public class AppController {
         "The transformed overlays now use the roads-library found in {}.",
         libraryGenerator.getLibraryFolder());
     if (newLibraryCreated) {
-      if (AppConfig.getRunArguments().isSkipLibraryModifications()) {
+      if (command.isSkipLibraryModifications()) {
         LOG.info(
             "As you have skipped the automatic transparency-modifications, you can set up the contents in this folder to your liking to achieve transparency.");
       } else {

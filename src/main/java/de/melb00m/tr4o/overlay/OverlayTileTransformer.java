@@ -1,25 +1,23 @@
-package de.melb00m.tr4o.proc;
+package de.melb00m.tr4o.overlay;
 
-import de.melb00m.tr4o.app.AppConfig;
+import de.melb00m.tr4o.app.Transparency4Ortho;
+import de.melb00m.tr4o.xptools.XPToolsInterface;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class OverlayTileTransformer {
+public class OverlayTileTransformer implements Runnable {
 
   private static final Logger LOG = LogManager.getLogger(OverlayTileTransformer.class);
   private static final Set<Pattern> REPLACEMENT_PATTERNS =
-      AppConfig.getApplicationConfig().getStringList("tiletransformer.replacements.patterns")
-          .stream()
+      Transparency4Ortho.CONFIG.getStringList("tiletransformer.replacements.patterns").stream()
           .map(Pattern::compile)
           .collect(Collectors.toUnmodifiableSet());
 
@@ -40,25 +38,8 @@ public class OverlayTileTransformer {
     this.xpToolsInterface = xpToolsInterface;
   }
 
-  public static Set<OverlayTileTransformer> buildTransformers(final Set<Path> overlayTiles) {
-    final var backupFolder =
-        AppConfig.getRunArguments()
-            .getBackupPath()
-            .orElseGet(
-                () ->
-                    Path.of(
-                        AppConfig.getApplicationConfig()
-                            .getString("overlay-scanner.backup-folder")))
-            .resolve(new SimpleDateFormat("yyyy-MM-dd HH-mm-ss").format(new Date()));
-    final var libraryName =
-        AppConfig.getApplicationConfig().getString("overlay-scanner.library-prefix");
-    final var xpTools = new XPToolsInterface();
-    return overlayTiles.stream()
-        .map(tile -> new OverlayTileTransformer(tile, backupFolder, libraryName, xpTools))
-        .collect(Collectors.toUnmodifiableSet());
-  }
-
-  public void runTransformation() {
+  @Override
+  public void run() {
     synchronized (this) {
       try {
         LOG.trace("Analyzing overlay tile: {}", dsfFile);

@@ -1,4 +1,4 @@
-package de.melb00m.tr4o.proc;
+package de.melb00m.tr4o.overlay;
 
 import de.melb00m.tr4o.helper.CollectionHelper;
 import de.melb00m.tr4o.helper.FileHelper;
@@ -53,7 +53,7 @@ public class OverlayScannerResult {
   }
 
   private Set<Path> calcIntersectingOverlays() {
-    return CollectionHelper.filteredMapKeys(
+    return CollectionHelper.filterMapByKeys(
             tileToOverlayDsfMap.get().asMap(), key -> getIntersectingTiles().contains(key))
         .values().stream()
         .flatMap(Collection::stream)
@@ -64,7 +64,7 @@ public class OverlayScannerResult {
     final var ovlToOrthoDirsMap = new HashSetValuedHashMap<Path, Path>();
     final var overlayDirToTilesMap = new HashSetValuedHashMap<Path, String>();
     // calc intermediate map that holds the intersecting tile-names contained in an ortho-directory
-    CollectionHelper.filteredMapKeys(
+    CollectionHelper.filterMapByKeys(
             overlayDsfToSceneryFolderMap, key -> getIntersectingOverlayDsfs().contains(key))
         .entrySet()
         .forEach(
