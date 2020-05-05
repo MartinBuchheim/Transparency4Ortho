@@ -18,13 +18,10 @@ public class OverlayTileTransformer {
 
   private static final Logger LOG = LogManager.getLogger(OverlayTileTransformer.class);
   private static final Set<Pattern> REPLACEMENT_PATTERNS =
-      Set.of(
-          Pattern.compile(
-              AppConfig.getApplicationConfig()
-                  .getString("overlay-scanner.replacements.roads-net.pattern")),
-          Pattern.compile(
-              AppConfig.getApplicationConfig()
-                  .getString("overlay-scanner.replacements.roads_EU-net.pattern")));
+      AppConfig.getApplicationConfig().getStringList("tiletransformer.replacements.patterns")
+          .stream()
+          .map(Pattern::compile)
+          .collect(Collectors.toUnmodifiableSet());
 
   private final Path dsfFile;
   private final Path backupDsfFile;
@@ -89,14 +86,6 @@ public class OverlayTileTransformer {
     }
   }
 
-  private void backupOriginalDsfFile() throws IOException {
-    LOG.trace("Creating backup of original overlay '{} in '{}'", dsfFile, backupDsfFile);
-    synchronized (OverlayTileTransformer.class) {
-      Files.createDirectories(backupDsfFile.getParent());
-    }
-    Files.copy(dsfFile, backupDsfFile);
-  }
-
   private String searchAndTransformLine(final String input) {
     for (Pattern pattern : REPLACEMENT_PATTERNS) {
       var matcher = pattern.matcher(input);
@@ -105,6 +94,14 @@ public class OverlayTileTransformer {
       }
     }
     return input;
+  }
+
+  private void backupOriginalDsfFile() throws IOException {
+    LOG.trace("Creating backup of original overlay '{} in '{}'", dsfFile, backupDsfFile);
+    synchronized (OverlayTileTransformer.class) {
+      Files.createDirectories(backupDsfFile.getParent());
+    }
+    Files.copy(dsfFile, backupDsfFile);
   }
 
   public boolean isTransformed() {

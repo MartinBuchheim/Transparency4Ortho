@@ -21,8 +21,10 @@ import java.util.stream.Collectors;
 public class LibraryGenerator {
 
   private static final Logger LOG = LogManager.getLogger(LibraryGenerator.class);
-  private static final String EXPORT_DIRECTIVE = "EXPORT_EXCLUDE %s/%s %s";
-  private static final List<String> LIB_TXT_HEADERS = List.of("A", "800", "LIBRARY", "");
+  private static final String EXPORT_DIRECTIVE =
+      AppConfig.getApplicationConfig().getString("libgen.library.export-directive");
+  private static final List<String> LIB_TXT_HEADERS =
+      AppConfig.getApplicationConfig().getStringList("libgen.library.txt-header");
 
   private final String libraryPrefix;
   private final Path libraryFolder;
@@ -78,18 +80,22 @@ public class LibraryGenerator {
     }
   }
 
-  public void regenerateLibrary() {
-    LOG.info("Regenerating library at: {}", libraryFolder);
-    try {
-      if (Files.exists(libraryFolder)) {
-        LOG.debug("Deleting existing library at: {}", libraryFolder);
-        FileHelper.deleteRecursively(libraryFolder, Collections.emptySet());
-      }
-      createLibrary();
-    } catch (IOException e) {
-      throw new IllegalStateException(
-          String.format("Failed to regenerate library at: %s", libraryFolder), e);
-    }
+  private void validateExistingLibrary() throws IOException {
+    LOG.info("Verifying that the existing library at {} can be used", libraryFolder);
+    Validate.isTrue(
+        Files.isReadable(libraryDefinitionFile),
+        "Can't read the 'library.txt' file in the existing library: %s",
+        libraryDefinitionFile);
+    final var containedLines = Files.readAllLines(libraryDefinitionFile);
+    roadsLibraryExportDefinitions.forEach(
+        exp -> {
+          final var expSearch = String.format(EXPORT_DIRECTIVE, libraryPrefix, exp, "");
+          Validate.isTrue(
+              containedLines.stream().anyMatch(line -> line.startsWith(expSearch)),
+              "Could not find expected export '%s' in existing library: %s",
+              expSearch,
+              libraryDefinitionFile);
+        });
   }
 
   private void createLibrary() throws IOException {
@@ -101,6 +107,34 @@ public class LibraryGenerator {
     copyLibraryFolder();
     applyLibraryModifications();
     generateLibraryTxt();
+  }
+
+  private void validateRoadsLibraryChecksum() {
+    final var crcSource = FileHelper.deepCrc32(roadsLibrarySourceFolder);
+    final var crcExpected =
+        AppConfig.getApplicationConfig().getLong("libgen.resources.roads.checksum");
+    if (!Objects.equals(crcSource, crcExpected)) {
+      LOG.debug(
+          "X-Plane roads library has checksum of {}, but {} is expected", crcSource, crcExpected);
+      LOG.warn(
+          "The standard X-Plane roads library at '{}' seems to have been modified.",
+          roadsLibrarySourceFolder);
+      LOG.warn(
+          "If you have made changes to this library, it is recommended to revert to the original state before proceeding.");
+      Validate.isTrue(
+          AppConfig.getRunArguments().isIgnoreChecksumErrors(),
+          "Aborting. Use '-i' parameter if you are really sure you want to skip this error.");
+    }
+  }
+
+  private void copyLibraryFolder() throws IOException {
+    LOG.info("Copying X-Plane default roads-library to {}", libraryFolder);
+    Files.createDirectories(roadLibraryTargetFolder);
+    FileHelper.copyRecursively(
+        roadsLibrarySourceFolder,
+        roadLibraryTargetFolder,
+        Collections.emptySet(),
+        roadsLibraryExcludes.toArray(new Path[0]));
   }
 
   private void applyLibraryModifications() {
@@ -193,55 +227,23 @@ public class LibraryGenerator {
     Files.write(libraryDefinitionFile, libLines);
   }
 
-  private void copyLibraryFolder() throws IOException {
-    LOG.info("Copying X-Plane default roads-library to {}", libraryFolder);
-    Files.createDirectories(roadLibraryTargetFolder);
-    FileHelper.copyRecursively(
-        roadsLibrarySourceFolder,
-        roadLibraryTargetFolder,
-        Collections.emptySet(),
-        roadsLibraryExcludes.toArray(new Path[0]));
-  }
-
-  private void validateRoadsLibraryChecksum() {
-    final var crcSource = FileHelper.deepCrc32(roadsLibrarySourceFolder);
-    final var crcExpected =
-        AppConfig.getApplicationConfig().getLong("libgen.resources.roads.checksum");
-    if (!Objects.equals(crcSource, crcExpected)) {
-      LOG.debug(
-          "X-Plane roads library has checksum of {}, but {} is expected", crcSource, crcExpected);
-      LOG.warn(
-          "The standard X-Plane roads library at '{}' seems to have been modified.",
-          roadsLibrarySourceFolder);
-      LOG.warn(
-          "If you have made changes to this library, it is recommended to revert to the original state before proceeding.");
-      Validate.isTrue(
-          AppConfig.getRunArguments().isIgnoreChecksumErrors(),
-          "Aborting. Use '-i' parameter if you are really sure you want to skip this error.");
-    }
-  }
-
-  private void validateExistingLibrary() throws IOException {
-    LOG.info("Verifying that the existing library at {} can be used", libraryFolder);
-    Validate.isTrue(
-        Files.isReadable(libraryDefinitionFile),
-        "Can't read the 'library.txt' file in the existing library: %s",
-        libraryDefinitionFile);
-    final var containedLines = Files.readAllLines(libraryDefinitionFile);
-    roadsLibraryExportDefinitions.forEach(
-        exp -> {
-          final var expSearch = String.format(EXPORT_DIRECTIVE, libraryPrefix, exp, "");
-          Validate.isTrue(
-              containedLines.stream().anyMatch(line -> line.startsWith(expSearch)),
-              "Could not find expected export '%s' in existing library: %s",
-              expSearch,
-              libraryDefinitionFile);
-        });
-  }
-
   private String buildExportDirective(final String exportName, final Path fileLocation) {
     final var relativePath = libraryFolder.relativize(fileLocation).toString().replace('\\', '/');
     return String.format(EXPORT_DIRECTIVE, libraryPrefix, exportName, relativePath);
+  }
+
+  public void regenerateLibrary() {
+    LOG.info("Regenerating library at: {}", libraryFolder);
+    try {
+      if (Files.exists(libraryFolder)) {
+        LOG.debug("Deleting existing library at: {}", libraryFolder);
+        FileHelper.deleteRecursively(libraryFolder, Collections.emptySet());
+      }
+      createLibrary();
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Failed to regenerate library at: %s", libraryFolder), e);
+    }
   }
 
   public Path getLibraryFolder() {

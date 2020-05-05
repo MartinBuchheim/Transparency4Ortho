@@ -14,7 +14,7 @@ import java.util.Set;
 public final class RunArguments {
 
   private final Path xPlanePath;
-  private final Set<Path> overlaysPath;
+  private final Optional<Set<Path>> overlaysPath;
   private final Optional<Path> dsfToolExecutable;
   private final Optional<Path> backupPath;
   private final Level consoleLogLevel;
@@ -24,12 +24,12 @@ public final class RunArguments {
 
   public RunArguments(
       Path xPlanePath,
-      Set<Path> overlaysPath,
+      Optional<Set<Path>> overlaysPath,
       boolean skipLibraryModifications,
       Optional<Path> dsfToolExecutable,
-      Level consoleLogLevel,
       boolean ignoreChecksumErrors,
       boolean forbidAutoDownload,
+      Level consoleLogLevel,
       Optional<Path> backupPath) {
     this.xPlanePath = xPlanePath;
     this.overlaysPath = overlaysPath;
@@ -45,7 +45,7 @@ public final class RunArguments {
     return xPlanePath;
   }
 
-  public Set<Path> getOverlayPaths() {
+  public Optional<Set<Path>> getOverlayPaths() {
     return overlaysPath;
   }
 

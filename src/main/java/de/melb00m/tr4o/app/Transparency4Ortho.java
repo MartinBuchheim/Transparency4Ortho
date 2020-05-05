@@ -38,7 +38,8 @@ public class Transparency4Ortho {
       }
 
       AppConfig.initialize(line);
-      new AppController(line.hasOption("r") ? AppMode.REGENERATE_LIBRARY : AppMode.OVERLAY_TRANSFORMATION)
+      new AppController(
+              line.hasOption("r") ? AppMode.REGENERATE_LIBRARY : AppMode.OVERLAY_TRANSFORMATION)
           .startProcessing();
 
     } catch (IllegalArgumentException | ParseException ex) {
@@ -46,24 +47,6 @@ public class Transparency4Ortho {
     } catch (Exception ex) {
       stopWithError(ex, false);
     }
-  }
-
-  private static void stopWithError(final Exception fail, final boolean printUsageReminder) {
-    LOG.error(fail.getMessage(), fail);
-    if (printUsageReminder) {
-      LOG.info("Use --help to show usage information");
-    }
-    System.exit(1);
-  }
-
-  private static void printHelp(Options options) {
-    new HelpFormatter()
-        .printHelp(
-            120,
-            "TransparentRoads4Ortho [options] <path-to-xplane> [<path-to-overlays> [<path-to-overlays> ...]]",
-            "",
-            options,
-            "");
   }
 
   private static Options generateCliOptions() {
@@ -99,5 +82,23 @@ public class Transparency4Ortho {
         .addOption("dd", "trace", false, "Show trace log output ")
         .addOption("h", "help", false, "Show detailed usage information")
         .addOption("v", "version", false, "Show version");
+  }
+
+  private static void printHelp(Options options) {
+    new HelpFormatter()
+        .printHelp(
+            120,
+            "TransparentRoads4Ortho [options] <path-to-xplane> [<path-to-overlays> [<path-to-overlays> ...]]",
+            "",
+            options,
+            "");
+  }
+
+  private static void stopWithError(final Exception fail, final boolean printUsageReminder) {
+    LOG.error(fail.getMessage(), fail);
+    if (printUsageReminder) {
+      LOG.info("Use --help to show usage information");
+    }
+    System.exit(1);
   }
 }
