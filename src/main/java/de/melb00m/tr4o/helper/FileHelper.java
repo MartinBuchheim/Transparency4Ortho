@@ -28,36 +28,6 @@ public final class FileHelper {
 
   private FileHelper() {}
 
-  public static List<Path> getAllPathsRecursively(
-      final Path source,
-      final boolean includeDirectories,
-      final Set<FileVisitOption> options,
-      final Path... exclusions) {
-    if (!Files.exists(source)) {
-      return Collections.emptyList();
-    }
-    final var collector = new ExclusionAwareFileCollector(Set.of(exclusions), includeDirectories);
-    try {
-      Files.walkFileTree(source, options, Integer.MAX_VALUE, collector);
-      return collector.getCollectedFiles();
-    } catch (IOException ex) {
-      throw Exceptions.uncheck(ex);
-    }
-  }
-
-  public static void deleteRecursively(
-      final Path folder, final Set<FileVisitOption> options, final Path... exclusions) {
-    try {
-      final var filesToDelete = getAllPathsRecursively(folder, true, options, exclusions);
-      Collections.reverse(filesToDelete); // will put the nested elements first
-      for (Path path : filesToDelete) {
-        Files.deleteIfExists(path);
-      }
-    } catch (IOException ex) {
-      throw Exceptions.uncheck(ex);
-    }
-  }
-
   public static void copyRecursively(
       final Path source,
       final Path target,
@@ -70,6 +40,23 @@ public final class FileHelper {
           Files.copy(sourcePath, copyToPath);
         }
       }
+    } catch (IOException ex) {
+      throw Exceptions.uncheck(ex);
+    }
+  }
+
+  public static List<Path> getAllPathsRecursively(
+      final Path source,
+      final boolean includeDirectories,
+      final Set<FileVisitOption> options,
+      final Path... exclusions) {
+    if (!Files.exists(source)) {
+      return Collections.emptyList();
+    }
+    final var collector = new ExclusionAwareFileCollector(Set.of(exclusions), includeDirectories);
+    try {
+      Files.walkFileTree(source, options, Integer.MAX_VALUE, collector);
+      return collector.getCollectedFiles();
     } catch (IOException ex) {
       throw Exceptions.uncheck(ex);
     }
@@ -121,6 +108,27 @@ public final class FileHelper {
       Runtime.getRuntime()
           .addShutdownHook(new Thread(() -> deleteRecursively(tempDir, Collections.emptySet())));
       return tempDir;
+    } catch (IOException e) {
+      throw Exceptions.uncheck(e);
+    }
+  }
+
+  public static void deleteRecursively(
+      final Path folder, final Set<FileVisitOption> options, final Path... exclusions) {
+    try {
+      final var filesToDelete = getAllPathsRecursively(folder, true, options, exclusions);
+      Collections.reverse(filesToDelete); // will put the nested elements first
+      for (Path path : filesToDelete) {
+        Files.deleteIfExists(path);
+      }
+    } catch (IOException ex) {
+      throw Exceptions.uncheck(ex);
+    }
+  }
+
+  public static boolean isSameFile(final Path first, final Path second) {
+    try {
+      return Files.isSameFile(first, second);
     } catch (IOException e) {
       throw Exceptions.uncheck(e);
     }

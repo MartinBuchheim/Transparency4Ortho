@@ -8,7 +8,11 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -21,20 +25,41 @@ public final class OutputHelper {
 
   private OutputHelper() {}
 
-  public static ProgressBarBuilder getPreconfiguredProgressBarBuilder() {
-    return new ProgressBarBuilder().setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(250);
-  }
-
-  public static ProgressBarBuilder getPreconfiguredLoggedProgressBarBuilder(final Logger logger) {
-    return getPreconfiguredProgressBarBuilder().setConsumer(new DelegatingProgressBarConsumer(logger::info));
-  }
-
   public static ProgressBarBuilder getPreconfiguredAutoProgressBarBuilder(
       final Level threshold, final Logger logger) {
     if (threshold.isMoreSpecificThan(AppConfig.getRunArguments().getConsoleLogLevel())) {
       return getPreconfiguredLoggedProgressBarBuilder(logger);
     }
     return getPreconfiguredProgressBarBuilder();
+  }
+
+  public static ProgressBarBuilder getPreconfiguredLoggedProgressBarBuilder(final Logger logger) {
+    return getPreconfiguredProgressBarBuilder()
+        .setConsumer(new DelegatingProgressBarConsumer(logger::info));
+  }
+
+  public static ProgressBarBuilder getPreconfiguredProgressBarBuilder() {
+    return new ProgressBarBuilder().setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(250);
+  }
+
+  public static List<String> joinLinesByTotalLength(
+      final int lineLength, final String joiner, final Collection<String> values) {
+    final var outLines = new ArrayList<String>();
+    final var queue = new LinkedList<>(values);
+    var lineBuilder = new StringBuilder();
+    while (!queue.isEmpty()) {
+      var next = queue.poll();
+      if (lineBuilder.length() + joiner.length() + next.length() > lineLength) {
+        var finishedLine = lineBuilder.toString();
+        if (!finishedLine.isBlank()) outLines.add(finishedLine);
+        lineBuilder = new StringBuilder(next);
+      } else {
+        if (lineBuilder.length() > 0) lineBuilder.append(joiner);
+        lineBuilder.append(next);
+      }
+    }
+    if (lineBuilder.length() > 0) outLines.add(lineBuilder.toString());
+    return outLines;
   }
 
   public static void confirmYesNo(

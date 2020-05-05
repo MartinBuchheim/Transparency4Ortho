@@ -20,14 +20,13 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class XPToolsInterface {
 
   private static final Logger LOG = LogManager.getLogger(XPToolsInterface.class);
 
-  private final AtomicReference<Path> dsfExecutable = new AtomicReference<>();
+  private final Path dsfExecutable;
   private final Path temporaryFolder;
   private final Path binariesFolder;
 
@@ -37,77 +36,28 @@ public class XPToolsInterface {
             Path.of(AppConfig.getApplicationConfig().getString("xptools.tmp-folder")),
             Optional.empty());
     this.binariesFolder = Path.of(AppConfig.getApplicationConfig().getString("xptools.bin-folder"));
-    // this is a hack to download the XPTools right away once this is created
-    getDSFExecutable();
+    this.dsfExecutable = prepareDsfExecutable();
   }
 
-  private static URL getDownloadUrlForOS() throws MalformedURLException {
-    if (SystemUtils.IS_OS_WINDOWS) {
-      return new URL(AppConfig.getApplicationConfig().getString("xptools.autodownload.url.win"));
+  private Path prepareDsfExecutable() {
+    // try to fetch from run-args first
+    var dsfToolExecutable = AppConfig.getRunArguments().getDsfToolExecutable();
+    // if no run-arg given, try to use DSFtool in binaries folder, or attempt auto download
+    if (dsfToolExecutable.isEmpty()) {
+      final var dsfExecutableNames =
+          AppConfig.getApplicationConfig().getStringList("xptools.executables.dsftool");
+      dsfToolExecutable =
+          getFirstMatchingExecutable(dsfExecutableNames)
+              .or(
+                  () -> {
+                    attemptAutomaticDownloadOfXpTools(binariesFolder);
+                    return getFirstMatchingExecutable(dsfExecutableNames);
+                  });
     }
-    if (SystemUtils.IS_OS_MAC) {
-      return new URL(AppConfig.getApplicationConfig().getString("xptools.autodownload.url.mac"));
-    }
-    if (SystemUtils.IS_OS_LINUX) {
-      return new URL(AppConfig.getApplicationConfig().getString("xptools.autodownload.url.linux"));
-    }
-    throw new IllegalStateException("No URL for auto-download of XPTools for current OS available");
-  }
-
-  private static String toProcessFile(final Path path) {
-    return path.toAbsolutePath().toString();
-  }
-
-  private Path getDSFExecutable() {
-    synchronized (dsfExecutable) {
-      if (dsfExecutable.get() == null) {
-        // try to fetch from run-args first
-        var dsfToolExecutable = AppConfig.getRunArguments().getDsfToolExecutable();
-        // if no run-arg given, try to use DSFtool in binaries folder, or attempt auto download
-        if (dsfToolExecutable.isEmpty()) {
-          final var dsfExecutableNames =
-              AppConfig.getApplicationConfig().getStringList("xptools.executables.dsftool");
-          dsfToolExecutable =
-              getFirstMatchingExecutable(dsfExecutableNames)
-                  .or(
-                      () -> {
-                        attemptAutomaticDownloadOfXpTools(binariesFolder);
-                        return getFirstMatchingExecutable(dsfExecutableNames);
-                      });
-        }
-        dsfToolExecutable.ifPresent(
-            exec ->
-                Validate.isTrue(Files.isExecutable(exec), "DSFTool is not executable: %s", exec));
-        dsfExecutable.set(
-            dsfToolExecutable.orElseThrow(
-                () -> new IllegalStateException("Failed to retrieve DSFTool")));
-      }
-    }
-    return dsfExecutable.get();
-  }
-
-  public String dsfToText(final Path dsfFile) throws IOException {
-    Validate.isTrue(Files.isReadable(dsfFile), "Given DSF file is not readable: %s", dsfFile);
-    final var process =
-        new ProcessBuilder(
-                toProcessFile(getDSFExecutable()), "--dsf2text", toProcessFile(dsfFile), "-")
-            .start();
-    try (final var input = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-      return input.lines().collect(Collectors.joining(System.lineSeparator()));
-    }
-  }
-
-  public void textToDsf(final Path targetFile, final String contents) throws IOException {
-    Validate.isTrue(
-        !Files.exists(targetFile), "Won't override existing DSF file at: %s", targetFile);
-    final var process =
-        new ProcessBuilder(
-                toProcessFile(getDSFExecutable()), "--text2dsf", "-", toProcessFile(targetFile))
-            .start();
-    try (var osw = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()))) {
-      osw.write(contents);
-      osw.flush();
-    }
+    dsfToolExecutable.ifPresent(
+        exec -> Validate.isTrue(Files.isExecutable(exec), "DSFTool is not executable: %s", exec));
+    return dsfToolExecutable.orElseThrow(
+        () -> new IllegalStateException("Failed to retrieve DSFTool"));
   }
 
   private Optional<Path> getFirstMatchingExecutable(final Collection<String> execNames) {
@@ -156,6 +106,46 @@ public class XPToolsInterface {
       }
     } catch (IOException e) {
       throw new IllegalStateException("Failed to auto-prepare XPTools", e);
+    }
+  }
+
+  private static URL getDownloadUrlForOS() throws MalformedURLException {
+    if (SystemUtils.IS_OS_WINDOWS) {
+      return new URL(AppConfig.getApplicationConfig().getString("xptools.autodownload.url.win"));
+    }
+    if (SystemUtils.IS_OS_MAC) {
+      return new URL(AppConfig.getApplicationConfig().getString("xptools.autodownload.url.mac"));
+    }
+    if (SystemUtils.IS_OS_LINUX) {
+      return new URL(AppConfig.getApplicationConfig().getString("xptools.autodownload.url.linux"));
+    }
+    throw new IllegalStateException("No URL for auto-download of XPTools for current OS available");
+  }
+
+  public String dsfToText(final Path dsfFile) throws IOException {
+    Validate.isTrue(Files.isReadable(dsfFile), "Given DSF file is not readable: %s", dsfFile);
+    final var process =
+        new ProcessBuilder(toProcessFile(dsfExecutable), "--dsf2text", toProcessFile(dsfFile), "-")
+            .start();
+    try (final var input = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+      return input.lines().collect(Collectors.joining(System.lineSeparator()));
+    }
+  }
+
+  private static String toProcessFile(final Path path) {
+    return path.toAbsolutePath().toString();
+  }
+
+  public void textToDsf(final Path targetFile, final String contents) throws IOException {
+    Validate.isTrue(
+        !Files.exists(targetFile), "Won't override existing DSF file at: %s", targetFile);
+    final var process =
+        new ProcessBuilder(
+                toProcessFile(dsfExecutable), "--text2dsf", "-", toProcessFile(targetFile))
+            .start();
+    try (var osw = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()))) {
+      osw.write(contents);
+      osw.flush();
     }
   }
 }

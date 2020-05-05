@@ -1,14 +1,12 @@
 package de.melb00m.tr4o.app;
 
-import de.melb00m.tr4o.helper.FileHelper;
 import de.melb00m.tr4o.helper.OutputHelper;
 import de.melb00m.tr4o.proc.LibraryGenerator;
 import de.melb00m.tr4o.proc.OverlayScanner;
+import de.melb00m.tr4o.proc.OverlayScannerResult;
 import de.melb00m.tr4o.proc.OverlayTileTransformer;
 import de.melb00m.tr4o.proc.XPToolsInterface;
 import me.tongfei.progressbar.ProgressBar;
-import org.apache.commons.collections4.MultiValuedMap;
-import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,6 +44,31 @@ public class AppController {
     }
   }
 
+  private void runOverlayTransformationProcess() {
+    newStep("Preparing Transparency4Ortho Library");
+    final var newLibraryCreated = libraryGenerator.validateOrCreateLibrary();
+
+    newStep("Scanning Overlay- and Ortho-Tiles");
+    final var scannerResult = overlayScanner.scanOverlaysAndOrthos();
+    if (scannerResult.getIntersectingTiles().isEmpty()) {
+      LOG.info("No tiles found that need to be processed.");
+      return;
+    }
+    LOG.debug(
+        "Following tiles have overlays and orthos present: {}",
+        () ->
+            scannerResult.getIntersectingTiles().stream()
+                .sorted()
+                .collect(Collectors.joining(",")));
+
+    newStep("Transforming Overlays");
+    userConfirmDetectedOrthos(scannerResult);
+    startOverlayTransformation(scannerResult.getIntersectingOverlayDsfs());
+
+    newStep("Final Words");
+    printFinalWords(newLibraryCreated);
+  }
+
   private void runLibraryRegenerationProcess() {
     LOG.warn(
         "This will completely remove and re-create the Transparency4Ortho library under '{}'",
@@ -53,30 +76,6 @@ public class AppController {
     OutputHelper.confirmYesOrExit(true, () -> "Proceed with re-generation?", () -> "Aborted.");
     libraryGenerator.regenerateLibrary();
     LOG.info("Library re-generation complete.");
-  }
-
-  private void runOverlayTransformationProcess() {
-    Validate.isTrue(
-        !AppConfig.getRunArguments().getOverlayPaths().isEmpty(),
-        "At least one overlay-directory is required as argument for overlay transformation.");
-
-    newStep("Preparing Transparency4Ortho Library");
-    final var newLibraryCreated = libraryGenerator.validateOrCreateLibrary();
-
-    newStep("Scanning Overlay- and Ortho-Tiles");
-    final var orthoToOverlayMap = overlayScanner.scanForOverlaysToTransform();
-    if (orthoToOverlayMap.isEmpty()) {
-      LOG.info("No tiles found that need to be processed.");
-      return;
-    }
-
-    newStep("Transforming Overlays");
-    userConfirmDetectedOrthos(orthoToOverlayMap);
-    startOverlayTransformation(
-        orthoToOverlayMap.values().stream().collect(Collectors.toUnmodifiableSet()));
-
-    newStep("Final Words");
-    printFinalWords(newLibraryCreated);
   }
 
   private void newStep(final String name) {
@@ -88,25 +87,35 @@ public class AppController {
         "=====================================================================================================");
   }
 
-  private void printFinalWords(boolean newLibraryCreated) {
-    LOG.info("Overlay processing has finished.");
+  private void userConfirmDetectedOrthos(final OverlayScannerResult scannerResult) {
+    LOG.info("The following overlay-sceneries are covered (at least in part) by ortho-imagery:");
+    scannerResult
+        .getIntersectingOverlayToSceneryDirectoriesMap()
+        .asMap()
+        .entrySet()
+        .forEach(
+            entry -> {
+              LOG.info("    ::: OVERLAYS IN : '{}' COVER ", entry.getKey().getFileName());
+              final var sortedNames =
+                  entry.getValue().stream()
+                      .map(path -> path.getFileName().toString())
+                      .sorted()
+                      .collect(Collectors.toList());
+              OutputHelper.joinLinesByTotalLength(90, ", ", sortedNames)
+                  .forEach(line -> LOG.info("      |  {}", line));
+            });
     LOG.info(
-        "The transformed overlays now use the roads-library found in {}.",
-        libraryGenerator.getLibraryFolder());
-    if (newLibraryCreated) {
-      if (AppConfig.getRunArguments().isSkipLibraryModifications()) {
-        LOG.info(
-            "As you have skipped the automatic transparency-modifications, you can set up the contents in this folder to your liking to achieve transparency.");
-      } else {
-        LOG.info(
-            "The library has been set up with the automatic transparency-modifications applied. However, you can still safely apply additional changes, if you're not fully happy with the result.");
-      }
-    } else {
-      LOG.info("If you wish to re-generate this library, have a look at the '-r' parameter.");
-    }
-    LOG.info("If additional overlays should be added later on, simply re-run this command.");
-    LOG.info("For help or newer versions, check out {}.", GITHUB_URL);
-    LOG.info("Always Three Greens!");
+        "These tiles will be modified to use the Transparency4Ortho library to make smaller roads transparent.");
+    LOG.info("If the above looks reasonable to you, proceed with the transformation.");
+    LOG.info(
+        "No worries: every overlay that needs to be transformed will be backed up beforehand.");
+    OutputHelper.confirmYesOrExit(
+        false,
+        () -> "Proceed with transformation?",
+        () ->
+            String.format(
+                "Please check the documentation at %s for more information about controlling the ortho-scenery auto-detection.",
+                GITHUB_URL));
   }
 
   private Set<Path> startOverlayTransformation(final Set<Path> overlaysToTransform) {
@@ -131,11 +140,13 @@ public class AppController {
             .map(tile -> new OverlayTileTransformer(tile, backupFolder, libraryName, xpTools))
             .collect(Collectors.toUnmodifiableSet());
 
-    ProgressBar.wrap(
-            transformers.parallelStream(),
-            OutputHelper.getPreconfiguredAutoProgressBarBuilder(Level.TRACE, LOG)
-                .setTaskName("Transforming"))
-        .forEach(OverlayTileTransformer::runTransformation);
+    final var stream =
+        AppConfig.getRunArguments().getConsoleLogLevel().isMoreSpecificThan(Level.TRACE)
+            ? ProgressBar.wrap(
+                transformers.parallelStream(),
+                OutputHelper.getPreconfiguredProgressBarBuilder().setTaskName("Transforming"))
+            : transformers.parallelStream();
+    stream.forEach(OverlayTileTransformer::runTransformation);
 
     // check which tiles have been transformed
     final Set<Path> transformedTiles =
@@ -155,31 +166,24 @@ public class AppController {
     return transformedTiles;
   }
 
-  private void userConfirmDetectedOrthos(final MultiValuedMap<Path, Path> sceneryToOverlayMap) {
-    LOG.info("The following ortho-sceneries cover the given overlays with ortho-imagery:");
-    sceneryToOverlayMap.keySet().stream()
-        .sorted()
-        .forEach(
-            scenery -> {
-              final var tilesList =
-                  sceneryToOverlayMap.get(scenery).stream()
-                      .map(FileHelper::getFilenameWithoutExtension)
-                      .sorted()
-                      .collect(Collectors.joining(", "));
-              LOG.info("    >> {}  [Tiles: {}]", scenery.getFileName(), tilesList);
-            });
-
+  private void printFinalWords(boolean newLibraryCreated) {
+    LOG.info("Overlay processing has finished.");
     LOG.info(
-        "These tiles will be modified to use the Transparency4Ortho library to make smaller roads transparent.");
-    LOG.info("If the above looks reasonable to you, proceed with the transformation.");
-    LOG.info(
-        "No worries: every overlay that needs to be transformed will be backed up beforehand.");
-    OutputHelper.confirmYesOrExit(
-        false,
-        () -> "Proceed with transformation?",
-        () ->
-            String.format(
-                "Please check the documentation at %s for more information about controlling the ortho-scenery auto-detection.",
-                GITHUB_URL));
+        "The transformed overlays now use the roads-library found in {}.",
+        libraryGenerator.getLibraryFolder());
+    if (newLibraryCreated) {
+      if (AppConfig.getRunArguments().isSkipLibraryModifications()) {
+        LOG.info(
+            "As you have skipped the automatic transparency-modifications, you can set up the contents in this folder to your liking to achieve transparency.");
+      } else {
+        LOG.info(
+            "The library has been set up with the automatic transparency-modifications applied. However, you can still safely apply additional changes, if you're not fully happy with the result.");
+      }
+    } else {
+      LOG.info("If you wish to re-generate this library, have a look at the '-r' parameter.");
+    }
+    LOG.info("If additional overlays should be added later on, simply re-run this command.");
+    LOG.info("For help or newer versions, check out {}.", GITHUB_URL);
+    LOG.info("Always Three Greens!");
   }
 }
