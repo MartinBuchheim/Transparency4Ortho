@@ -5,8 +5,8 @@ import java.util.function.Supplier;
 
 public class LazyAttribute<T> {
 
-  final AtomicReference<T> reference;
-  final Supplier<T> supplier;
+  private final AtomicReference<T> reference;
+  private final Supplier<T> supplier;
 
   public LazyAttribute(Supplier<T> supplier) {
     this.reference = new AtomicReference<>();

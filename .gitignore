@@ -2,6 +2,7 @@
 logs/
 tmp/
 bin/
+deps/
 
 # Gradle
 .gradle

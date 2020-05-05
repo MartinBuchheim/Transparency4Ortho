@@ -144,8 +144,10 @@ public final class Transparency4Ortho implements Runnable {
     } catch (IllegalArgumentException e) {
       LOG.error("ERROR: {}", e.getMessage(), e);
       LOG.info("Use --help to show usage information");
+      System.exit(1);
     } catch (Exception e) {
       LOG.error("ERROR: {}", e.getMessage(), e);
+      System.exit(1);
     }
   }
 
