@@ -41,7 +41,7 @@ public final class FileHelper {
         }
       }
     } catch (IOException ex) {
-      throw Exceptions.uncheck(ex);
+      throw ExceptionHelper.uncheck(ex);
     }
   }
 
@@ -58,7 +58,7 @@ public final class FileHelper {
       Files.walkFileTree(source, options, Integer.MAX_VALUE, collector);
       return collector.getCollectedFiles();
     } catch (IOException ex) {
-      throw Exceptions.uncheck(ex);
+      throw ExceptionHelper.uncheck(ex);
     }
   }
 
@@ -109,7 +109,7 @@ public final class FileHelper {
           .addShutdownHook(new Thread(() -> deleteRecursively(tempDir, Collections.emptySet())));
       return tempDir;
     } catch (IOException e) {
-      throw Exceptions.uncheck(e);
+      throw ExceptionHelper.uncheck(e);
     }
   }
 
@@ -122,7 +122,7 @@ public final class FileHelper {
         Files.deleteIfExists(path);
       }
     } catch (IOException ex) {
-      throw Exceptions.uncheck(ex);
+      throw ExceptionHelper.uncheck(ex);
     }
   }
 
@@ -130,7 +130,7 @@ public final class FileHelper {
     try {
       return Files.isSameFile(first, second);
     } catch (IOException e) {
-      throw Exceptions.uncheck(e);
+      throw ExceptionHelper.uncheck(e);
     }
   }
 
@@ -147,11 +147,11 @@ public final class FileHelper {
                 try {
                   crc.update(Files.readAllBytes(file));
                 } catch (IOException e) {
-                  throw Exceptions.uncheck(e);
+                  throw ExceptionHelper.uncheck(e);
                 }
               });
     } catch (IOException e) {
-      throw Exceptions.uncheck(e);
+      throw ExceptionHelper.uncheck(e);
     }
     return crc.getValue();
   }

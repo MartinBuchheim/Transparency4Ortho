@@ -1,7 +1,7 @@
-package de.melb00m.tr4o.proc;
+package de.melb00m.tr4o.overlay;
 
-import de.melb00m.tr4o.app.AppConfig;
-import de.melb00m.tr4o.helper.Exceptions;
+import de.melb00m.tr4o.app.Transparency4Ortho;
+import de.melb00m.tr4o.helper.ExceptionHelper;
 import de.melb00m.tr4o.helper.LazyAttribute;
 import org.apache.commons.collections4.SetUtils;
 import org.apache.logging.log4j.LogManager;
@@ -24,62 +24,63 @@ public class OverlayScanner {
 
   private static final Logger LOG = LogManager.getLogger(OverlayScanner.class);
   private static final String EARTH_NAV_DATA =
-      AppConfig.getApplicationConfig().getString("overlay-scanner.earth-nav-data-folder");
+      Transparency4Ortho.CONFIG.getString("overlay-scanner.earth-nav-data-folder");
   private static final Pattern DSF_TILE_FILENAME_PATTERN =
       Pattern.compile(
-          AppConfig.getApplicationConfig().getString("overlay-scanner.regex.dsf-filename"),
+          Transparency4Ortho.CONFIG.getString("overlay-scanner.regex.dsf-filename"),
           Pattern.CASE_INSENSITIVE);
   private static final Pattern SCENERY_PACK_ENTRY_PATTERN =
       Pattern.compile(
-          AppConfig.getApplicationConfig().getString("overlay-scanner.regex.scenery-pack-entry"));
+          Transparency4Ortho.CONFIG.getString("overlay-scanner.regex.scenery-pack-entry"));
   private static final Set<Pattern> OVERLAY_FOLDER_NAME_PATTERNS =
-      AppConfig.getApplicationConfig()
+      Transparency4Ortho.CONFIG
           .getStringList("overlay-scanner.detection.overlays.folder-names-regex").stream()
           .map(Pattern::compile)
           .collect(Collectors.toUnmodifiableSet());
   private static final Set<Path> OVERLAY_DETECTION_EXCLUDERS =
-      AppConfig.getApplicationConfig()
-          .getStringList("overlay-scanner.detection.overlays.excluder-files").stream()
+      Transparency4Ortho.CONFIG.getStringList("overlay-scanner.detection.overlays.excluder-files")
+          .stream()
           .map(Path::of)
           .collect(Collectors.toUnmodifiableSet());
   private static final Set<Path> OVERLAY_DETECTION_INCLUDERS =
-      AppConfig.getApplicationConfig()
-          .getStringList("overlay-scanner.detection.overlays.includer-files").stream()
+      Transparency4Ortho.CONFIG.getStringList("overlay-scanner.detection.overlays.includer-files")
+          .stream()
           .map(Path::of)
           .collect(Collectors.toUnmodifiableSet());
   private static final Set<Pattern> ORTHO_FOLDER_NAME_PATTERNS =
-      AppConfig.getApplicationConfig()
-          .getStringList("overlay-scanner.detection.orthos.folder-names-regex").stream()
+      Transparency4Ortho.CONFIG.getStringList("overlay-scanner.detection.orthos.folder-names-regex")
+          .stream()
           .map(Pattern::compile)
           .collect(Collectors.toUnmodifiableSet());
   private static final Pattern ORTHO_TEXTURE_FILENAME_PATTERN =
       Pattern.compile(
-          AppConfig.getApplicationConfig()
-              .getString("overlay-scanner.detection.orthos.dds-filename-regex"),
+          Transparency4Ortho.CONFIG.getString(
+              "overlay-scanner.detection.orthos.dds-filename-regex"),
           Pattern.CASE_INSENSITIVE);
   private static final Set<Path> ORTHO_DETECTION_EXCLUDERS =
-      AppConfig.getApplicationConfig()
-          .getStringList("overlay-scanner.detection.orthos.excluder-files").stream()
+      Transparency4Ortho.CONFIG.getStringList("overlay-scanner.detection.orthos.excluder-files")
+          .stream()
           .map(Path::of)
           .collect(Collectors.toUnmodifiableSet());
   private static final Set<Path> ORTHO_DETECTION_INCLUDERS =
-      AppConfig.getApplicationConfig()
-          .getStringList("overlay-scanner.detection.orthos.includer-files").stream()
+      Transparency4Ortho.CONFIG.getStringList("overlay-scanner.detection.orthos.includer-files")
+          .stream()
           .map(Path::of)
           .collect(Collectors.toUnmodifiableSet());
 
+  private final Transparency4Ortho command;
   private final Path xPlaneRootDir;
   private final LazyAttribute<Set<Path>> sceneryDirectories;
 
-  public OverlayScanner() {
-    this.xPlaneRootDir = AppConfig.getRunArguments().getXPlanePath();
+  public OverlayScanner(final Transparency4Ortho command) {
+    this.command = command;
+    this.xPlaneRootDir = command.getXPlanePath();
     this.sceneryDirectories = new LazyAttribute<>(this::calcXplaneSceneryFolders);
   }
 
   private Set<Path> calcXplaneSceneryFolders() {
     final var sceneryPacksFile =
-        xPlaneRootDir.resolve(
-            AppConfig.getApplicationConfig().getString("overlay-scanner.scenery-packs-file"));
+        xPlaneRootDir.resolve(command.config().getString("overlay-scanner.scenery-packs-file"));
     try {
       return Files.readAllLines(sceneryPacksFile).stream()
           .map(SCENERY_PACK_ENTRY_PATTERN::matcher)
@@ -126,9 +127,8 @@ public class OverlayScanner {
   }
 
   private Set<Path> findOverlayDirectories() {
-    final var autoScan = AppConfig.getRunArguments().getOverlayPaths().isEmpty();
-    final var scanBaseFolders =
-        AppConfig.getRunArguments().getOverlayPaths().orElseGet(sceneryDirectories::get);
+    final var autoScan = command.getOverlayPaths().isEmpty();
+    final var scanBaseFolders = command.getOverlayPaths().orElseGet(sceneryDirectories::get);
     final var overlayFolders = new HashSet<Path>();
 
     if (autoScan) {
@@ -165,7 +165,7 @@ public class OverlayScanner {
               path -> DSF_TILE_FILENAME_PATTERN.matcher(path.getFileName().toString()).matches())
           .collect(Collectors.toUnmodifiableSet());
     } catch (IOException e) {
-      throw Exceptions.uncheck(e);
+      throw ExceptionHelper.uncheck(e);
     }
   }
 
@@ -265,7 +265,7 @@ public class OverlayScanner {
                           .matcher(dds.getFileName().toString())
                           .matches());
     } catch (IOException e) {
-      throw Exceptions.uncheck(e);
+      throw ExceptionHelper.uncheck(e);
     }
   }
 }

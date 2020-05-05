@@ -6,7 +6,7 @@
     <Appenders>
         <Console name="LogToConsole" target="SYSTEM_OUT">
             <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
-            <PatternLayout pattern="%-8level %msg%n %throwable{none}"/>
+            <PatternLayout pattern="%msg%n %throwable{none}"/>
         </Console>
         <File name="LogToFile" fileName="${filename}">
             <PatternLayout>

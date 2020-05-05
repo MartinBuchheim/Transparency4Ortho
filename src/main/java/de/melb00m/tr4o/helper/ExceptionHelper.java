@@ -1,8 +1,8 @@
 package de.melb00m.tr4o.helper;
 
-public final class Exceptions {
+public final class ExceptionHelper {
 
-  private Exceptions() {}
+  private ExceptionHelper() {}
 
   /**
    * Sneaky method that tricks the compiler into passing checked exceptions through methods that

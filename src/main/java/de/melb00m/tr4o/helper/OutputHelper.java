@@ -1,11 +1,10 @@
 package de.melb00m.tr4o.helper;
 
-import de.melb00m.tr4o.app.AppConfig;
-import me.tongfei.progressbar.DelegatingProgressBarConsumer;
+import de.melb00m.tr4o.app.Transparency4Ortho;
+import me.tongfei.progressbar.ProgressBar;
 import me.tongfei.progressbar.ProgressBarBuilder;
 import me.tongfei.progressbar.ProgressBarStyle;
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.Logger;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -17,6 +16,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 public final class OutputHelper {
 
@@ -25,20 +25,18 @@ public final class OutputHelper {
 
   private OutputHelper() {}
 
-  public static ProgressBarBuilder getPreconfiguredAutoProgressBarBuilder(
-      final Level threshold, final Logger logger) {
-    if (threshold.isMoreSpecificThan(AppConfig.getRunArguments().getConsoleLogLevel())) {
-      return getPreconfiguredLoggedProgressBarBuilder(logger);
+  public static <T> Stream<T> maybeShowWithProgressBar(
+      final String taskName,
+      final Stream<T> stream,
+      final Level threshold,
+      final Transparency4Ortho command) {
+    if (command.getConsoleLogLevel().isMoreSpecificThan(threshold)) {
+      return ProgressBar.wrap(stream, getProgressBarBuilder().setTaskName(taskName));
     }
-    return getPreconfiguredProgressBarBuilder();
+    return stream;
   }
 
-  public static ProgressBarBuilder getPreconfiguredLoggedProgressBarBuilder(final Logger logger) {
-    return getPreconfiguredProgressBarBuilder()
-        .setConsumer(new DelegatingProgressBarConsumer(logger::info));
-  }
-
-  public static ProgressBarBuilder getPreconfiguredProgressBarBuilder() {
+  public static ProgressBarBuilder getProgressBarBuilder() {
     return new ProgressBarBuilder().setStyle(ProgressBarStyle.ASCII).setUpdateIntervalMillis(250);
   }
 
