@@ -40,7 +40,7 @@ For example:
 
 `Transparency4Ortho "E:\Games\X-Plane 11"`) 
 
-( Note that the quotation marks are around the folder are a thing of the Windows CMD shell, not a syntax required by Transparency4Ortho. Other shells and operating systems do it differently. )
+( Note that the quotation marks around the folder-names are a thing of the Windows CMD shell, not a syntax required by Transparency4Ortho. Other shells and operating systems do it differently. )
 
 ### Manual selection of overlays:
 Used like the automatic command above, but after the X-Plane folder specify any number of overlay-folders you want to process. 
@@ -115,9 +115,9 @@ Yes, these remain visible and animated.
 ## How can I rebuild / restore the Transparency4Ortho library?
 Just run `Transparency4Ortho -r <path-to-xplane>`. This can also be useful after when a new version of Transparency4Ortho or X-Plane ships.
 
-# I think I found a bug!
+## I think I found a bug!
 Great, please check if is [already reported](https://github.com/melb00m/Transparency4Ortho/issues) and if not, create a new one.
 
-# How can I get in touch?
+## How can I get in touch?
 The best way would be to contact me on the [X-Plane.org Forums](https://forums.x-plane.org/index.php?/profile/726502-melb00m/).
 
