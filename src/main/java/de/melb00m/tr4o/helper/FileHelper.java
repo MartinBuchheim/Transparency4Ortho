@@ -1,9 +1,8 @@
 package de.melb00m.tr4o.helper;
 
-import de.melb00m.tr4o.exceptions.ExceptionHelper;
+import de.melb00m.tr4o.exceptions.Exceptions;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
-import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,10 +20,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.zip.CRC32;
 
+/**
+ * Various helpers for file-based operations that make file handling possible
+ * in lambdas due to not declaring any {@link IOException}s.
+ *
+ * @author Martin Buchheim
+ */
 public final class FileHelper {
 
   public static final Set<FileVisitOption> FOLLOW_SYMLINKS =
@@ -46,7 +48,7 @@ public final class FileHelper {
         }
       }
     } catch (IOException ex) {
-      throw ExceptionHelper.uncheck(ex);
+      throw Exceptions.unrecoverable(ex);
     }
   }
 
@@ -63,7 +65,7 @@ public final class FileHelper {
       Files.walkFileTree(source, options, Integer.MAX_VALUE, collector);
       return collector.getCollectedFiles();
     } catch (IOException ex) {
-      throw ExceptionHelper.uncheck(ex);
+      throw Exceptions.unrecoverable(ex);
     }
   }
 
@@ -114,7 +116,7 @@ public final class FileHelper {
           .addShutdownHook(new Thread(() -> deleteRecursively(tempDir, Collections.emptySet())));
       return tempDir;
     } catch (IOException e) {
-      throw ExceptionHelper.uncheck(e);
+      throw Exceptions.unrecoverable(e);
     }
   }
 
@@ -127,19 +129,17 @@ public final class FileHelper {
         Files.deleteIfExists(path);
       }
     } catch (IOException ex) {
-      throw ExceptionHelper.uncheck(ex);
+      throw Exceptions.unrecoverable(ex);
     }
   }
 
   public static String deepMD5Hash(final Path source) {
-    Validate.isTrue(
-        Files.isReadable(source), "Can't create MD5 as location is not readable: %s", source);
     try (final var stream = Files.walk(source)) {
       var digest = MessageDigest.getInstance("MD5");
       stream.filter(Files::isRegularFile).forEachOrdered(file -> digest.update(readAllBytes(file)));
-      return bytesToHex(digest.digest());
+      return OutputHelper.bytesToHex(digest.digest());
     } catch (IOException | NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
+      throw Exceptions.unrecoverable(e);
     }
   }
 
@@ -147,29 +147,7 @@ public final class FileHelper {
     try {
       return Files.readAllBytes(file);
     } catch (IOException e) {
-      throw ExceptionHelper.uncheck(e);
+      throw Exceptions.unrecoverable(e);
     }
-  }
-
-  public static String bytesToHex(byte[] bytes) {
-    return IntStream.range(0, bytes.length)
-        .map(idx -> bytes[idx] & 0xff)
-        .mapToObj(in -> String.format("%02x", in))
-        .collect(Collectors.joining());
-  }
-
-  public static long deepCrc32(final Path source) {
-    Validate.isTrue(
-        Files.isReadable(source), "CRC32 not possible, location is not readable: %s", source);
-    final var crc = new CRC32();
-    try (final var stream = Files.walk(source)) {
-      stream
-          .sorted()
-          .filter(Files::isRegularFile)
-          .forEachOrdered(file -> crc.update(readAllBytes(file)));
-    } catch (IOException e) {
-      throw ExceptionHelper.uncheck(e);
-    }
-    return crc.getValue();
   }
 }

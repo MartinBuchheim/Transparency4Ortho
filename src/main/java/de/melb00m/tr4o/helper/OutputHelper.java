@@ -10,14 +10,20 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+/**
+ * Helpers for handling input and output for the command line.
+ *
+ * @author Martin Buchheim
+ */
 public final class OutputHelper {
 
   private static final Set<String> YES_SELECTION = Set.of("y", "yes");
@@ -41,15 +47,14 @@ public final class OutputHelper {
   }
 
   public static List<String> joinLinesByTotalLength(
-      final int lineLength, final String joiner, final Collection<String> values) {
+      final int lineLength, final String joiner, final Collection<?> values) {
     final var outLines = new ArrayList<String>();
-    final var queue = new LinkedList<>(values);
+    final var iter = values.iterator();
     var lineBuilder = new StringBuilder();
-    while (!queue.isEmpty()) {
-      var next = queue.poll();
-      if (lineBuilder.length() + joiner.length() + next.length() > lineLength) {
-        var finishedLine = lineBuilder.toString();
-        if (!finishedLine.isBlank()) outLines.add(finishedLine);
+    while (iter.hasNext()) {
+      var next = iter.next().toString();
+      if ((lineBuilder.length() + joiner.length() + next.length()) > lineLength) {
+        if (lineBuilder.length() > 0) outLines.add(lineBuilder.toString());
         lineBuilder = new StringBuilder(next);
       } else {
         if (lineBuilder.length() > 0) lineBuilder.append(joiner);
@@ -66,7 +71,7 @@ public final class OutputHelper {
       final Consumer<String> onNoSelection) {
     final var response =
         readLineFromConsole(
-            "%s [%s/%s]", question.get(), noIsDefault ? "y" : "Y", noIsDefault ? "N" : "n");
+            "%s [%s/%s] ", question.get(), noIsDefault ? "y" : "Y", noIsDefault ? "N" : "n");
     if (response.isBlank()) {
       if (noIsDefault) {
         onNoSelection.accept(response);
@@ -111,5 +116,12 @@ public final class OutputHelper {
         System.console() != null ? System.console().writer() : new PrintWriter(System.out);
     Arrays.stream(lines).forEach(writer::println);
     writer.flush();
+  }
+
+  public static String bytesToHex(final byte[] bytes) {
+    return IntStream.range(0, bytes.length)
+        .map(idx -> bytes[idx] & 0xff)
+        .mapToObj(in -> String.format("%02x", in))
+        .collect(Collectors.joining());
   }
 }

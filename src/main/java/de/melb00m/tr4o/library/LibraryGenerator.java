@@ -1,9 +1,9 @@
 package de.melb00m.tr4o.library;
 
 import de.melb00m.tr4o.app.Transparency4Ortho;
-import de.melb00m.tr4o.exceptions.ExceptionHelper;
+import de.melb00m.tr4o.exceptions.Exceptions;
 import de.melb00m.tr4o.helper.FileHelper;
-import org.apache.commons.lang3.Validate;
+import de.melb00m.tr4o.misc.Verify;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,6 +18,22 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Class that allows to (re-) create and verify the Transparency4Ortho library in X-Plane.
+ *
+ * <p>The Transparency4Ortho library is a copy of the default X-Plane roads-library, including the
+ * {@code roads.net} and {@code roads_EU.net} files which will be duplicate in a separate
+ * Transparency4Ortho-folder under {@code X-Plane/Custom Scenery}.
+ *
+ * <p>The library will provide the roads-files mentioned above under a new name, which will then be
+ * linked in the overlay-tiles of ortho-scenery to keep the original way that roads look intact for
+ * regular (non-ortho) ground textures that X-Plane generates on the fly.
+ *
+ * <p>With {@link #applyLibraryModifications()} the {@code roads(_EU).net}-files are also
+ * automatically changed to achieve the transparency effect.
+ *
+ * @author Martin Buchheim
+ */
 public class LibraryGenerator {
 
   private static final Logger LOG = LogManager.getLogger(LibraryGenerator.class);
@@ -59,8 +75,16 @@ public class LibraryGenerator {
             .collect(Collectors.toUnmodifiableSet());
   }
 
+  /**
+   * Checks if a Transparency4Ortho library is present in the X-Plane folder, and if so, runs some
+   * basic validations that is correct.
+   *
+   * <p>If no library is found, a new one is created.
+   *
+   * @return {@code true} if the library has been created
+   */
   public boolean validateOrCreateLibrary() {
-    synchronized (this) {
+    synchronized (LibraryGenerator.class) {
       try {
         if (Files.exists(libraryDefinitionFile)) {
           validateExistingLibrary();
@@ -77,27 +101,25 @@ public class LibraryGenerator {
 
   private void validateExistingLibrary() throws IOException {
     LOG.info("Verifying that the existing library at {} can be used", libraryFolder);
-    Validate.isTrue(
-        Files.isReadable(libraryDefinitionFile),
-        "Can't read the 'library.txt' file in the existing library: %s",
-        libraryDefinitionFile);
+    Verify.withErrorMessage(
+            "Can't read the 'library.txt' file in the existing library: %s", libraryDefinitionFile)
+        .state(Files.isReadable(libraryDefinitionFile));
     final var containedLines = Files.readAllLines(libraryDefinitionFile);
     roadsLibraryExportDefinitions.forEach(
         exp -> {
           final var expSearch = String.format(EXPORT_DIRECTIVE, libraryPrefix, exp, "");
-          Validate.isTrue(
-              containedLines.stream().anyMatch(line -> line.startsWith(expSearch)),
-              "Could not find expected export '%s' in existing library: %s",
-              expSearch,
-              libraryDefinitionFile);
+          Verify.withErrorMessage(
+                  "Could not find expected export '%s' in existing library: %s",
+                  expSearch, libraryDefinitionFile)
+              .state(containedLines.stream().anyMatch(line -> line.startsWith(expSearch)));
         });
   }
 
   private void createLibrary() throws IOException {
-    Validate.isTrue(
-        Files.exists(roadsLibrarySourceFolder),
-        "Can't find X-Plane default roads-library at expected location: %s",
-        roadsLibrarySourceFolder);
+    Verify.withErrorMessage(
+            "Can't find X-Plane default roads-library at expected location: %s",
+            roadsLibrarySourceFolder)
+        .state(Files.exists(roadsLibrarySourceFolder));
     validateRoadsLibraryChecksum();
     copyLibraryFolder();
     applyLibraryModifications();
@@ -120,9 +142,9 @@ public class LibraryGenerator {
                     "If you have made changes to your X-Plane default roads-library, please run the X-Plane installer again to reset it.");
                 LOG.info(
                     "If this error persists afterwards, you might use an unsupported version of X-Plane.");
-                Validate.isTrue(
-                    command.isIgnoreChecksumErrors(),
-                    "Aborting. Use '-i' if you want to ignore the checksum mismatch.");
+                Verify.withErrorMessage(
+                        "Aborting. Use '-i' if you want to ignore the checksum mismatch.")
+                    .state(command.isIgnoreChecksumErrors());
               }
             });
   }
@@ -156,10 +178,8 @@ public class LibraryGenerator {
             .collect(Collectors.toUnmodifiableSet());
     try {
       for (final var fileToModify : modifyUncommentRoadFiles) {
-        if (!Files.isWritable(fileToModify)) {
-          throw new IllegalStateException(
-              String.format("File not writeable for modification: %s", fileToModify));
-        }
+        Verify.withErrorMessage("File not writeable for modification: %s", fileToModify)
+            .state(Files.isWritable(fileToModify));
         final var lines = Files.readAllLines(fileToModify);
         final var newLines = new ArrayList<String>(lines.size());
         final var groups = new ArrayList<String>();
@@ -188,39 +208,30 @@ public class LibraryGenerator {
         }
       }
     } catch (IOException e) {
-      throw ExceptionHelper.uncheck(e);
+      throw Exceptions.unrecoverable(e);
     }
   }
 
   private void generateLibraryTxt() throws IOException {
     LOG.info("Generating library at {}", libraryDefinitionFile);
-    Validate.isTrue(
-        Files.notExists(libraryDefinitionFile),
-        "Can't create new library.txt at %s: it already exists",
-        libraryDefinitionFile);
+    Verify.withErrorMessage(
+            "Can't create new library.txt at %s: it already exists", libraryDefinitionFile)
+        .state(Files.notExists(libraryDefinitionFile));
 
     // find our exported files in the folder
     final var filesToExport =
-        FileHelper.searchFileNamesRecursively(
-            roadLibraryTargetFolder, roadsLibraryExportDefinitions, Collections.emptySet());
-    roadsLibraryExportDefinitions.forEach(
-        export -> {
-          Validate.isTrue(
-              filesToExport.containsKey(export),
-              "No file named '%s' for export in library.txt found in library: %s",
-              export,
-              roadLibraryTargetFolder);
-          Validate.isTrue(
-              filesToExport.get(export).size() == 1,
-              "More than one file named '%s' found in copied library: %s",
-              export,
-              roadLibraryTargetFolder);
-        });
+        roadsLibraryExportDefinitions.stream()
+            .map(roadLibraryTargetFolder::resolve)
+            .collect(Collectors.toUnmodifiableSet());
+    filesToExport.forEach(
+        export ->
+            Verify.withErrorMessage("File not found for export in library: %s", export)
+                .state(Files.exists(export)));
 
     // Generate the library.txt content-lines
     final var libLines = new ArrayList<>(LIB_TXT_HEADERS);
-    filesToExport.entries().stream()
-        .map(entry -> buildExportDirective(entry.getKey(), entry.getValue()))
+    filesToExport.stream()
+        .map(file -> buildExportDirective(file.getFileName().toString(), file))
         .forEach(libLines::add);
 
     Files.write(libraryDefinitionFile, libLines);
@@ -231,20 +242,30 @@ public class LibraryGenerator {
     return String.format(EXPORT_DIRECTIVE, libraryPrefix, exportName, relativePath);
   }
 
+  /**
+   * Removes an existing Transparency4Ortho-library (if it exists) and creates it new from scratch.
+   */
   public void regenerateLibrary() {
-    LOG.info("Regenerating library at: {}", libraryFolder);
-    try {
-      if (Files.exists(libraryFolder)) {
-        LOG.debug("Deleting existing library at: {}", libraryFolder);
-        FileHelper.deleteRecursively(libraryFolder, Collections.emptySet());
+    synchronized (LibraryGenerator.class) {
+      LOG.info("Regenerating library at: {}", libraryFolder);
+      try {
+        if (Files.exists(libraryFolder)) {
+          LOG.debug("Deleting existing library at: {}", libraryFolder);
+          FileHelper.deleteRecursively(libraryFolder, Collections.emptySet());
+        }
+        createLibrary();
+      } catch (IOException e) {
+        throw new IllegalStateException(
+            String.format("Failed to regenerate library at: %s", libraryFolder), e);
       }
-      createLibrary();
-    } catch (IOException e) {
-      throw new IllegalStateException(
-          String.format("Failed to regenerate library at: %s", libraryFolder), e);
     }
   }
 
+  /**
+   * Returns the library folder for Transparency4Ortho inside X-Plane
+   *
+   * @return Path to Transparency4Ortho library
+   */
   public Path getLibraryFolder() {
     return libraryFolder;
   }

@@ -5,6 +5,12 @@ import de.melb00m.tr4o.library.LibraryGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * Library-Regeneration subcommand ('-r' parameter on CLI-options)
+ *
+ * @see Transparency4Ortho
+ * @author Martin Buchheim
+ */
 public class LibraryRegeneration implements Runnable {
 
   private static final Logger LOG = LogManager.getLogger(LibraryRegeneration.class);

@@ -1,8 +1,14 @@
-package de.melb00m.tr4o.helper;
+package de.melb00m.tr4o.misc;
 
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+/**
+ * Class that allows for lazy-loaded attributes that are initialized when first fetched.
+ *
+ * @param <T> Wrapped attribute type
+ * @author Martin Buchheim
+ */
 public class LazyAttribute<T> {
 
   private final AtomicReference<T> reference;
