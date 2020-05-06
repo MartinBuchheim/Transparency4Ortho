@@ -1,5 +1,6 @@
 package de.melb00m.tr4o.helper;
 
+import de.melb00m.tr4o.exceptions.ExceptionHelper;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import org.apache.commons.lang3.Validate;
@@ -13,11 +14,15 @@ import java.nio.channels.Channels;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.zip.CRC32;
 
 public final class FileHelper {
@@ -126,12 +131,31 @@ public final class FileHelper {
     }
   }
 
-  public static boolean isSameFile(final Path first, final Path second) {
+  public static String deepMD5Hash(final Path source) {
+    Validate.isTrue(
+        Files.isReadable(source), "Can't create MD5 as location is not readable: %s", source);
+    try (final var stream = Files.walk(source)) {
+      var digest = MessageDigest.getInstance("MD5");
+      stream.filter(Files::isRegularFile).forEachOrdered(file -> digest.update(readAllBytes(file)));
+      return bytesToHex(digest.digest());
+    } catch (IOException | NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  public static byte[] readAllBytes(final Path file) {
     try {
-      return Files.isSameFile(first, second);
+      return Files.readAllBytes(file);
     } catch (IOException e) {
       throw ExceptionHelper.uncheck(e);
     }
+  }
+
+  public static String bytesToHex(byte[] bytes) {
+    return IntStream.range(0, bytes.length)
+        .map(idx -> bytes[idx] & 0xff)
+        .mapToObj(in -> String.format("%02x", in))
+        .collect(Collectors.joining());
   }
 
   public static long deepCrc32(final Path source) {
@@ -142,14 +166,7 @@ public final class FileHelper {
       stream
           .sorted()
           .filter(Files::isRegularFile)
-          .forEachOrdered(
-              file -> {
-                try {
-                  crc.update(Files.readAllBytes(file));
-                } catch (IOException e) {
-                  throw ExceptionHelper.uncheck(e);
-                }
-              });
+          .forEachOrdered(file -> crc.update(readAllBytes(file)));
     } catch (IOException e) {
       throw ExceptionHelper.uncheck(e);
     }
