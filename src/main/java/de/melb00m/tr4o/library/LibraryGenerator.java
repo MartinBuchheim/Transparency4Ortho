@@ -1,7 +1,7 @@
 package de.melb00m.tr4o.library;
 
 import de.melb00m.tr4o.app.Transparency4Ortho;
-import de.melb00m.tr4o.helper.ExceptionHelper;
+import de.melb00m.tr4o.exceptions.ExceptionHelper;
 import de.melb00m.tr4o.helper.FileHelper;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
@@ -105,20 +105,26 @@ public class LibraryGenerator {
   }
 
   private void validateRoadsLibraryChecksum() {
-    final var crcSource = FileHelper.deepCrc32(roadsLibrarySourceFolder);
-    final var crcExpected = command.config().getLong("libgen.resources.roads.checksum");
-    if (!Objects.equals(crcSource, crcExpected)) {
-      LOG.debug(
-          "X-Plane roads library has checksum of {}, but {} is expected", crcSource, crcExpected);
-      LOG.warn(
-          "The standard X-Plane roads library at '{}' seems to have been modified.",
-          roadsLibrarySourceFolder);
-      LOG.warn(
-          "If you have made changes to this library, it is recommended to revert to the original state before proceeding.");
-      Validate.isTrue(
-          command.isIgnoreChecksumErrors(),
-          "Aborting. Use '-i' parameter if you are really sure you want to skip this error.");
-    }
+    var crcConfig = command.config().getConfig("libgen.resources.roads.checksum");
+    crcConfig
+        .entrySet()
+        .forEach(
+            entry -> {
+              var file = roadsLibrarySourceFolder.resolve(entry.getKey().replace("\"", ""));
+              var fileCrc = FileHelper.deepMD5Hash(file).toUpperCase();
+              var expectedCrcs = crcConfig.getStringList(entry.getKey());
+              if (!expectedCrcs.contains(fileCrc)) {
+                LOG.info("Checksum mismatch for file at: {}", file);
+                LOG.debug("Checksum was {} (Expected: {})", fileCrc, expectedCrcs);
+                LOG.info(
+                    "If you have made changes to your X-Plane default roads-library, please run the X-Plane installer again to reset it.");
+                LOG.info(
+                    "If this error persists afterwards, you might use an unsupported version of X-Plane.");
+                Validate.isTrue(
+                    command.isIgnoreChecksumErrors(),
+                    "Aborting. Use '-i' if you want to ignore the checksum mismatch.");
+              }
+            });
   }
 
   private void copyLibraryFolder() throws IOException {
