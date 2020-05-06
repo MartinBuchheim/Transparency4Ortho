@@ -2,8 +2,8 @@ package de.melb00m.tr4o.xptools;
 
 import de.melb00m.tr4o.app.Transparency4Ortho;
 import de.melb00m.tr4o.helper.FileHelper;
+import de.melb00m.tr4o.misc.Verify;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,6 +22,18 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Interface-class for accessing functionalities of the DSFTool from the X-Plane developer toolkit.
+ *
+ * <p>Allows easy usage of DSFTool functionality using the {@link #dsfToText(Path)} and {@link
+ * #textToDsf(Path, String)} methods.
+ *
+ * <p>Required the DSFTool-binary for the current operating system to be present, obviously. If the
+ * binary-location is not provided by the user, an attempt to download the tool automatically from
+ * the X-Plane developer website is made the first time the tool is required.
+ *
+ * @author Martin Buchheim
+ */
 public class XPToolsInterface {
 
   private static final Logger LOG = LogManager.getLogger(XPToolsInterface.class);
@@ -61,7 +73,9 @@ public class XPToolsInterface {
                     });
       }
       dsfToolExecutable.ifPresent(
-          exec -> Validate.isTrue(Files.isExecutable(exec), "DSFTool is not executable: %s", exec));
+          exec ->
+              Verify.withErrorMessage("DSFTool is not executable: %s", exec)
+                  .state(Files.isExecutable(exec)));
       return dsfToolExecutable.orElseThrow(
           () -> new IllegalStateException("Failed to retrieve DSFTool"));
     }
@@ -77,8 +91,8 @@ public class XPToolsInterface {
   }
 
   private void attemptAutomaticDownloadOfXpTools(final Path targetFolder) {
-    Validate.isTrue(
-        !command.isForbidAutoDownload(), "XPTools not found and automatic download disabled");
+    Verify.withErrorMessage("XPTools not found and automatic download disabled")
+        .state(!command.isForbidAutoDownload());
     try {
       final var downloadUrl = getDownloadUrlForOS();
       LOG.info(
@@ -128,8 +142,17 @@ public class XPToolsInterface {
     throw new IllegalStateException("No URL for auto-download of XPTools for current OS available");
   }
 
+  /**
+   * Converts the file at the given {@code dsfFile}-path to a textural representation using DSFTool
+   * and returns it.
+   *
+   * @param dsfFile Path to DSF-file
+   * @return Textual representation of the file
+   * @throws IOException I/O errors
+   */
   public String dsfToText(final Path dsfFile) throws IOException {
-    Validate.isTrue(Files.isReadable(dsfFile), "Given DSF file is not readable: %s", dsfFile);
+    Verify.withErrorMessage("Given DSF file is not readable: %s,", dsfFile)
+        .argument(Files.isReadable(dsfFile));
     final var process =
         new ProcessBuilder(toProcessFile(dsfExecutable), "--dsf2text", toProcessFile(dsfFile), "-")
             .start();
@@ -142,9 +165,20 @@ public class XPToolsInterface {
     return path.toAbsolutePath().toString();
   }
 
+  /**
+   * Converts the given {@code contents} to DSF using DSFTool and stores it at the path given in
+   * {@code targetFile}.
+   *
+   * <p>If a file at the given target-path already exists, an {@link IllegalArgumentException} is
+   * triggered.
+   *
+   * @param targetFile Target-Path for DSF-file
+   * @param contents Textual representation to be converted to DSF
+   * @throws IOException I/O errors
+   */
   public void textToDsf(final Path targetFile, final String contents) throws IOException {
-    Validate.isTrue(
-        !Files.exists(targetFile), "Won't override existing DSF file at: %s", targetFile);
+    Verify.withErrorMessage("Won't override existing file at: %s", targetFile)
+        .argument(!Files.exists(targetFile));
     final var process =
         new ProcessBuilder(
                 toProcessFile(dsfExecutable), "--text2dsf", "-", toProcessFile(targetFile))

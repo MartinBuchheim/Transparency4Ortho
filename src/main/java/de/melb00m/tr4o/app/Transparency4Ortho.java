@@ -4,9 +4,9 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import de.melb00m.tr4o.app.subcommands.LibraryRegeneration;
 import de.melb00m.tr4o.app.subcommands.OverlayTransformation;
-import de.melb00m.tr4o.exceptions.ExceptionHelper;
-import de.melb00m.tr4o.helper.LazyAttribute;
-import org.apache.commons.lang3.Validate;
+import de.melb00m.tr4o.exceptions.Exceptions;
+import de.melb00m.tr4o.misc.Verify;
+import de.melb00m.tr4o.misc.LazyAttribute;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,9 +22,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Class holding the configuration for this run.
+ * Main entry-class for the application and the primary picocli @{@link
+ * picocli.CommandLine.Command}.
  *
- * @author martin.buchheim
+ * @author Martin Buchheim
  */
 @CommandLine.Command(
     name = "Transparency4Ortho",
@@ -145,7 +146,7 @@ public final class Transparency4Ortho implements Runnable {
       LOG.error("ERROR: {}", e.getMessage(), e);
       LOG.info("Use --help to show usage information");
       System.exit(1);
-    } catch (Exception e) {
+    } catch (java.lang.Exception e) {
       LOG.error("ERROR: {}", e.getMessage(), e);
       System.exit(1);
     }
@@ -167,19 +168,16 @@ public final class Transparency4Ortho implements Runnable {
   }
 
   private void verifyBasicParameters() {
-    Validate.isTrue(
-        Files.isDirectory(getXPlanePath()),
-        "X-Plane path is not a valid folder: %s",
-        getXPlanePath());
+    Verify.withErrorMessage("X-Plane path is not a valid folder: %s", this::getXPlanePath)
+        .argument(Files.isDirectory(getXPlanePath()));
     getOverlayPaths()
         .ifPresent(
             overlays ->
                 overlays.forEach(
                     ovl ->
-                        Validate.isTrue(
-                            Files.isDirectory(ovl),
-                            "Overlay path does not point to a valid folder: %s",
-                            ovl)));
+                        Verify.withErrorMessage(
+                                "Overlay path does not point to a valid folder: %s", ovl)
+                            .argument(Files.isDirectory(ovl))));
   }
 
   public Path getXPlanePath() {
@@ -205,7 +203,7 @@ public final class Transparency4Ortho implements Runnable {
       LOG.trace("Application directory set to: {}", path.toAbsolutePath());
       return path;
     } catch (URISyntaxException e) {
-      throw ExceptionHelper.uncheck(e);
+      throw Exceptions.unrecoverable(e);
     }
   }
 

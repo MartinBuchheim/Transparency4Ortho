@@ -1,8 +1,9 @@
 package de.melb00m.tr4o.tiles;
 
 import de.melb00m.tr4o.app.Transparency4Ortho;
-import de.melb00m.tr4o.exceptions.ExceptionHelper;
-import de.melb00m.tr4o.helper.LazyAttribute;
+import de.melb00m.tr4o.exceptions.Exceptions;
+import de.melb00m.tr4o.misc.LazyAttribute;
+import de.melb00m.tr4o.misc.Verify;
 import org.apache.commons.collections4.SetUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +21,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Class that scans the user's X-Plane sceneries for tiles that represent ortho-scenery and
+ * ortho-overlays.
+ *
+ * <p>This class more or less only tries to detect these types of scenery using a handful of
+ * detection-methods. The interpretation of the results, such as cross-referencing the detected
+ * overlay- and scenery-tiles, is done in the {@link TilesScannerResult}-class.
+ *
+ * @see OverlayTileTransformer
+ * @see TilesScannerResult
+ */
 public class TilesScanner {
 
   private static final Logger LOG = LogManager.getLogger(TilesScanner.class);
@@ -94,6 +106,12 @@ public class TilesScanner {
     }
   }
 
+  /**
+   * Scans the X-Plane-folder for ortho-tiles and {@link TilesScannerResult}-object representing the
+   * results in a structured form.
+   *
+   * @return Result of the scan
+   */
   public TilesScannerResult scanOverlaysAndOrthos() {
     final var ovlFolderToTilesMapping = new HashMap<Path, Path>();
     final var orthoFolderToTilesMapping = new HashMap<Path, Path>();
@@ -114,14 +132,9 @@ public class TilesScanner {
             Set.copyOf(ovlFolderToTilesMapping.values()),
             Set.copyOf(orthoFolderToTilesMapping.values()));
 
-    if (!intersect.isEmpty()) {
-      throw new IllegalStateException(
-          String.format(
-              "These directories are used as ortho AND overlay directories: %s",
-              intersect.stream()
-                  .map(path -> path.getFileName().toString())
-                  .collect(Collectors.joining(", "))));
-    }
+    Verify.withErrorMessage(
+            "These directories are used as ortho AND overlay directories: %s", intersect::toArray)
+        .state(intersect.isEmpty());
 
     return new TilesScannerResult(ovlFolderToTilesMapping, orthoFolderToTilesMapping);
   }
@@ -165,7 +178,7 @@ public class TilesScanner {
               path -> DSF_TILE_FILENAME_PATTERN.matcher(path.getFileName().toString()).matches())
           .collect(Collectors.toUnmodifiableSet());
     } catch (IOException e) {
-      throw ExceptionHelper.uncheck(e);
+      throw Exceptions.unrecoverable(e);
     }
   }
 
@@ -265,7 +278,7 @@ public class TilesScanner {
                           .matcher(dds.getFileName().toString())
                           .matches());
     } catch (IOException e) {
-      throw ExceptionHelper.uncheck(e);
+      throw Exceptions.unrecoverable(e);
     }
   }
 }

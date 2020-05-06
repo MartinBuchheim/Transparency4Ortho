@@ -2,7 +2,7 @@ package de.melb00m.tr4o.tiles;
 
 import de.melb00m.tr4o.helper.CollectionHelper;
 import de.melb00m.tr4o.helper.FileHelper;
-import de.melb00m.tr4o.helper.LazyAttribute;
+import de.melb00m.tr4o.misc.LazyAttribute;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.SetUtils;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
@@ -15,6 +15,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Holds the result of ortho-scenery scan performed by {@link TilesScanner#scanOverlaysAndOrthos()}.
+ *
+ * <p>This class allows structured access to the scanning result, especially in regards to
+ * intersecting tiles (i.e. tiles for which ortho-scenery and -overlay are present).
+ *
+ * @see TilesScanner#scanOverlaysAndOrthos()
+ * @author Martin Buchheim
+ */
 public class TilesScannerResult {
 
   private final Map<Path, Path> overlayDsfToSceneryFolderMap;
@@ -26,7 +35,7 @@ public class TilesScannerResult {
   private final LazyAttribute<MultiValuedMap<Path, Path>>
       intersectingOverlayToSceneryDirectoriesMap;
 
-  public TilesScannerResult(
+  TilesScannerResult(
       final Map<Path, Path> overlayDsfToSceneryFolderMap,
       final Map<Path, Path> orthoDsfToSceneryFolderMap) {
     this.overlayDsfToSceneryFolderMap = Collections.unmodifiableMap(overlayDsfToSceneryFolderMap);
@@ -60,7 +69,7 @@ public class TilesScannerResult {
         .collect(Collectors.toUnmodifiableSet());
   }
 
-  public MultiValuedMap<Path, Path> calcIntersectingOverlayToOrthoDirectories() {
+  private MultiValuedMap<Path, Path> calcIntersectingOverlayToOrthoDirectories() {
     final var ovlToOrthoDirsMap = new HashSetValuedHashMap<Path, Path>();
     final var overlayDirToTilesMap = new HashSetValuedHashMap<Path, String>();
     // calc intermediate map that holds the intersecting tile-names contained in an ortho-directory
@@ -90,14 +99,34 @@ public class TilesScannerResult {
     return FileHelper.removeFileExtension(path.getFileName().toString());
   }
 
+  /**
+   * Return all intersecting tile-names found in the scanner-results, i.e. tiles for which
+   * ortho-scenery and -overlays are present.
+   *
+   * @see #getIntersectingOverlayDsfs()
+   * @return Intersecting tile names
+   */
   public Set<String> getIntersectingTiles() {
     return intersectingTiles.get();
   }
 
+  /**
+   * Returns paths to overlay-DSF files which represent a tile for which also ortho-scenery is
+   * present in the result.
+   *
+   * @see #getIntersectingTiles()
+   * @return Overlay-paths for intersecting tiles
+   */
   public Set<Path> getIntersectingOverlayDsfs() {
     return intersectingOverlayDsfs.get();
   }
 
+  /**
+   * Returns a multimap of which the keys are ortho-overlay directories, and the corresponding
+   * values are ortho-scenery directories which this overlay-directory covers (in part).
+   *
+   * @return Map of ortho-overlay directories covering ortho-scenery directories
+   */
   public MultiValuedMap<Path, Path> getIntersectingOverlayToSceneryDirectoriesMap() {
     return intersectingOverlayToSceneryDirectoriesMap.get();
   }

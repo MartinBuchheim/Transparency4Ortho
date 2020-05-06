@@ -8,7 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-public class ExclusionAwareFileCollector extends SimpleFileVisitor<Path> {
+/**
+ * {@link java.nio.file.FileVisitor} implementation that supports exclusion of given entries.
+ *
+ * @author Martin Buchheim
+ */
+class ExclusionAwareFileCollector extends SimpleFileVisitor<Path> {
 
   private final Set<Path> exclusions;
   private final boolean includeDirectories;

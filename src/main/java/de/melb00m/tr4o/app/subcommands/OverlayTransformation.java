@@ -3,9 +3,9 @@ package de.melb00m.tr4o.app.subcommands;
 import de.melb00m.tr4o.app.Transparency4Ortho;
 import de.melb00m.tr4o.helper.OutputHelper;
 import de.melb00m.tr4o.library.LibraryGenerator;
+import de.melb00m.tr4o.tiles.OverlayTileTransformer;
 import de.melb00m.tr4o.tiles.TilesScanner;
 import de.melb00m.tr4o.tiles.TilesScannerResult;
-import de.melb00m.tr4o.tiles.OverlayTileTransformer;
 import de.melb00m.tr4o.xptools.XPToolsInterface;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -17,7 +17,15 @@ import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
-
+/**
+ * "All-in-One" Overlay Transformation subcommand.
+ * <p/>
+ * This is the main operating mode of the application that combines all necessary
+ * step to get Transparency4Ortho up and running in X-Plane.
+ *
+ * @see Transparency4Ortho
+ * @author Martin Buchheim
+ */
 public class OverlayTransformation implements Runnable {
 
   private static final String GITHUB_URL =
@@ -125,8 +133,10 @@ public class OverlayTransformation implements Runnable {
         transformers.stream()
             .filter(OverlayTileTransformer::isTransformed)
             .map(OverlayTileTransformer::getDsfFile)
-            .collect(Collectors.toUnmodifiableSet());
-    LOG.trace("Tiles that have been transformed: {}", transformedTiles.toArray());
+            .collect(Collectors.toCollection(TreeSet::new));
+    LOG.debug("Tiles that have been transformed:", transformedTiles.toArray());
+    OutputHelper.joinLinesByTotalLength(90, ", ", transformedTiles)
+        .forEach(out -> LOG.debug("    {}", out));
     LOG.info(
         "{} Overlay tiles have been linked to Transparency4Ortho, {} did not need changes.",
         transformedTiles.size(),
