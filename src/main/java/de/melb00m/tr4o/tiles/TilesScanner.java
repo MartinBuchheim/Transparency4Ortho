@@ -1,7 +1,7 @@
-package de.melb00m.tr4o.overlay;
+package de.melb00m.tr4o.tiles;
 
 import de.melb00m.tr4o.app.Transparency4Ortho;
-import de.melb00m.tr4o.helper.ExceptionHelper;
+import de.melb00m.tr4o.exceptions.ExceptionHelper;
 import de.melb00m.tr4o.helper.LazyAttribute;
 import org.apache.commons.collections4.SetUtils;
 import org.apache.logging.log4j.LogManager;
@@ -20,9 +20,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class OverlayScanner {
+public class TilesScanner {
 
-  private static final Logger LOG = LogManager.getLogger(OverlayScanner.class);
+  private static final Logger LOG = LogManager.getLogger(TilesScanner.class);
   private static final String EARTH_NAV_DATA =
       Transparency4Ortho.CONFIG.getString("overlay-scanner.earth-nav-data-folder");
   private static final Pattern DSF_TILE_FILENAME_PATTERN =
@@ -72,7 +72,7 @@ public class OverlayScanner {
   private final Path xPlaneRootDir;
   private final LazyAttribute<Set<Path>> sceneryDirectories;
 
-  public OverlayScanner(final Transparency4Ortho command) {
+  public TilesScanner(final Transparency4Ortho command) {
     this.command = command;
     this.xPlaneRootDir = command.getXPlanePath();
     this.sceneryDirectories = new LazyAttribute<>(this::calcXplaneSceneryFolders);
@@ -94,7 +94,7 @@ public class OverlayScanner {
     }
   }
 
-  public OverlayScannerResult scanOverlaysAndOrthos() {
+  public TilesScannerResult scanOverlaysAndOrthos() {
     final var ovlFolderToTilesMapping = new HashMap<Path, Path>();
     final var orthoFolderToTilesMapping = new HashMap<Path, Path>();
     findOverlayDirectories()
@@ -123,7 +123,7 @@ public class OverlayScanner {
                   .collect(Collectors.joining(", "))));
     }
 
-    return new OverlayScannerResult(ovlFolderToTilesMapping, orthoFolderToTilesMapping);
+    return new TilesScannerResult(ovlFolderToTilesMapping, orthoFolderToTilesMapping);
   }
 
   private Set<Path> findOverlayDirectories() {

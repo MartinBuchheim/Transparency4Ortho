@@ -1,4 +1,4 @@
-package de.melb00m.tr4o.helper;
+package de.melb00m.tr4o.exceptions;
 
 public final class ExceptionHelper {
 

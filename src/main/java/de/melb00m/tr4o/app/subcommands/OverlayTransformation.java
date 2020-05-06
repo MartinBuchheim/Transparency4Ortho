@@ -3,9 +3,9 @@ package de.melb00m.tr4o.app.subcommands;
 import de.melb00m.tr4o.app.Transparency4Ortho;
 import de.melb00m.tr4o.helper.OutputHelper;
 import de.melb00m.tr4o.library.LibraryGenerator;
-import de.melb00m.tr4o.overlay.OverlayScanner;
-import de.melb00m.tr4o.overlay.OverlayScannerResult;
-import de.melb00m.tr4o.overlay.OverlayTileTransformer;
+import de.melb00m.tr4o.tiles.TilesScanner;
+import de.melb00m.tr4o.tiles.TilesScannerResult;
+import de.melb00m.tr4o.tiles.OverlayTileTransformer;
 import de.melb00m.tr4o.xptools.XPToolsInterface;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -24,14 +24,14 @@ public class OverlayTransformation implements Runnable {
       Transparency4Ortho.CONFIG.getString("general.github-url");
   private static final Logger LOG = LogManager.getLogger(OverlayTransformation.class);
   private final LibraryGenerator libraryGenerator;
-  private final OverlayScanner overlayScanner;
+  private final TilesScanner tilesScanner;
   private final Transparency4Ortho command;
   private int currentStep = 0;
 
   public OverlayTransformation(final Transparency4Ortho command) {
     this.command = command;
     this.libraryGenerator = new LibraryGenerator(command);
-    this.overlayScanner = new OverlayScanner(command);
+    this.tilesScanner = new TilesScanner(command);
   }
 
   @Override
@@ -40,7 +40,7 @@ public class OverlayTransformation implements Runnable {
     final var newLibraryCreated = libraryGenerator.validateOrCreateLibrary();
 
     nextStep("Scanning Overlay- and Ortho-Tiles");
-    final var scannerResult = overlayScanner.scanOverlaysAndOrthos();
+    final var scannerResult = tilesScanner.scanOverlaysAndOrthos();
     if (scannerResult.getIntersectingTiles().isEmpty()) {
       LOG.info("No tiles found that need to be processed.");
       return;
@@ -67,7 +67,7 @@ public class OverlayTransformation implements Runnable {
         "=====================================================================================================");
   }
 
-  private void userConfirmDetectedOrthos(final OverlayScannerResult scannerResult) {
+  private void userConfirmDetectedOrthos(final TilesScannerResult scannerResult) {
     LOG.info("The following overlay-sceneries are covered (at least in part) by ortho-imagery:");
     scannerResult
         .getIntersectingOverlayToSceneryDirectoriesMap()

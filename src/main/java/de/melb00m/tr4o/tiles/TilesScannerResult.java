@@ -1,4 +1,4 @@
-package de.melb00m.tr4o.overlay;
+package de.melb00m.tr4o.tiles;
 
 import de.melb00m.tr4o.helper.CollectionHelper;
 import de.melb00m.tr4o.helper.FileHelper;
@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class OverlayScannerResult {
+public class TilesScannerResult {
 
   private final Map<Path, Path> overlayDsfToSceneryFolderMap;
   private final Map<Path, Path> orthoDsfToSceneryFolderMap;
@@ -26,7 +26,7 @@ public class OverlayScannerResult {
   private final LazyAttribute<MultiValuedMap<Path, Path>>
       intersectingOverlayToSceneryDirectoriesMap;
 
-  public OverlayScannerResult(
+  public TilesScannerResult(
       final Map<Path, Path> overlayDsfToSceneryFolderMap,
       final Map<Path, Path> orthoDsfToSceneryFolderMap) {
     this.overlayDsfToSceneryFolderMap = Collections.unmodifiableMap(overlayDsfToSceneryFolderMap);
