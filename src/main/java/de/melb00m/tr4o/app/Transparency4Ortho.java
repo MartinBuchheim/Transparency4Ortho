@@ -4,7 +4,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import de.melb00m.tr4o.app.subcommands.LibraryRegeneration;
 import de.melb00m.tr4o.app.subcommands.OverlayTransformation;
-import de.melb00m.tr4o.helper.ExceptionHelper;
+import de.melb00m.tr4o.exceptions.ExceptionHelper;
 import de.melb00m.tr4o.helper.LazyAttribute;
 import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.Level;

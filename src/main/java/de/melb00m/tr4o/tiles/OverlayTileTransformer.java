@@ -1,4 +1,4 @@
-package de.melb00m.tr4o.overlay;
+package de.melb00m.tr4o.tiles;
 
 import de.melb00m.tr4o.app.Transparency4Ortho;
 import de.melb00m.tr4o.xptools.XPToolsInterface;
