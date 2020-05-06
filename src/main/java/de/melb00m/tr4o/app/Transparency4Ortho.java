@@ -31,6 +31,7 @@ import java.util.Set;
     name = "Transparency4Ortho",
     mixinStandardHelpOptions = true,
     abbreviateSynopsis = true,
+    version = "Transparency4Ortho v0.1.0-rc1",
     header = "Transparent Roads for Ortho-Covered Scenery in X-Plane 11",
     footer =
         "For information on how this application operates, and the changes it applies to your ortho-overlay tiles, "
