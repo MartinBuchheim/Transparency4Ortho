@@ -1,0 +1,16 @@
+A
+800
+LIBRARY
+
+## Define tiles for which ortho is present
+
+REGION_DEFINE Transparency4Ortho_Transparent
+::REGION_DEFINITIONS::
+
+
+
+# Export the modded roads.net files for above region
+
+REGION Transparency4Ortho_Transparent
+EXPORT_EXCLUDE lib/g10/roads_EU.net Resources/1000_roads/roads_EU.net
+EXPORT_EXCLUDE lib/g10/roads.net Resources/1000_roads/roads.net

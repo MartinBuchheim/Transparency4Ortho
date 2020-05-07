@@ -34,8 +34,7 @@ import java.util.Set;
     version = "Transparency4Ortho v0.1.0-rc1",
     header = "Transparent Roads for Ortho-Covered Scenery in X-Plane 11",
     footer =
-        "For information on how this application operates, and the changes it applies to your ortho-overlay tiles, "
-            + "please refer to the documentation at \nhttps://github.com/melb00m/Transparency4Ortho")
+        "For information on how this application operates, please refer to the documentation at \nhttps://github.com/melb00m/Transparency4Ortho")
 public final class Transparency4Ortho implements Runnable {
 
   public static final Config CONFIG = ConfigFactory.defaultApplication().resolve();
@@ -54,7 +53,7 @@ public final class Transparency4Ortho implements Runnable {
 
   @CommandLine.Option(
       names = {"-r", "--regenerateLibrary"},
-      description = "Re-generates the Transparency4Ortho library-folder and then exits.")
+      description = "Removes and re-creates the Transparency4Ortho library folder. All previously existing transparent-tile definitions will be lost.")
   private boolean regenerateLibraryMode;
 
   @CommandLine.Option(

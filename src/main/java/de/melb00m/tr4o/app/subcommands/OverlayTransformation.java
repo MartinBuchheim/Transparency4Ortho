@@ -19,9 +19,9 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 /**
  * "All-in-One" Overlay Transformation subcommand.
- * <p/>
- * This is the main operating mode of the application that combines all necessary
- * step to get Transparency4Ortho up and running in X-Plane.
+ *
+ * <p>This is the main operating mode of the application that combines all necessary step to get
+ * Transparency4Ortho up and running in X-Plane.
  *
  * @see Transparency4Ortho
  * @author Martin Buchheim
@@ -58,9 +58,13 @@ public class OverlayTransformation implements Runnable {
             90, ", ", new TreeSet<>(scannerResult.getIntersectingTiles()))
         .forEach(out -> LOG.debug("    {}", out));
 
-    nextStep("Transforming Overlays");
+    //    nextStep("Transforming Overlays");
+    //    userConfirmDetectedOrthos(scannerResult);
+    //    startOverlayTransformation(scannerResult.getIntersectingOverlayDsfs());
+
+    nextStep("Generating Library-File");
     userConfirmDetectedOrthos(scannerResult);
-    startOverlayTransformation(scannerResult.getIntersectingOverlayDsfs());
+    generateLibraryDefinition(scannerResult);
 
     nextStep("Final Words");
     printFinalWords(newLibraryCreated);
@@ -106,6 +110,31 @@ public class OverlayTransformation implements Runnable {
                 GITHUB_URL));
   }
 
+  private void generateLibraryDefinition(final TilesScannerResult scannerResult) {
+    libraryGenerator.generateLibraryTxt(scannerResult.getIntersectingTiles(), true);
+  }
+
+  private void printFinalWords(boolean newLibraryCreated) {
+    LOG.info("Transparency4Ortho processing has finished.");
+    LOG.info(
+        "The transformed overlays now use the roads-library found in {}.",
+        libraryGenerator.getLibraryFolder());
+    if (newLibraryCreated) {
+      if (command.isSkipLibraryModifications()) {
+        LOG.info(
+            "As you have skipped the automatic transparency-modifications, you can set up the contents in this folder to your liking to achieve transparency.");
+      } else {
+        LOG.info(
+            "The library has been set up with the automatic transparency-modifications applied. However, you can still safely apply additional changes, if you're not fully happy with the result.");
+      }
+    } else {
+      LOG.info("If you wish to re-generate this library, have a look at the '-r' parameter.");
+    }
+    LOG.info("If additional overlays should be added later on, simply re-run this command.");
+    LOG.info("For help or newer versions, check out {}.", GITHUB_URL);
+    LOG.info("Always Three Greens!");
+  }
+
   private Set<Path> startOverlayTransformation(final Set<Path> overlaysToTransform) {
     final var backupFolder =
         command
@@ -146,26 +175,5 @@ public class OverlayTransformation implements Runnable {
     }
 
     return transformedTiles;
-  }
-
-  private void printFinalWords(boolean newLibraryCreated) {
-    LOG.info("Overlay processing has finished.");
-    LOG.info(
-        "The transformed overlays now use the roads-library found in {}.",
-        libraryGenerator.getLibraryFolder());
-    if (newLibraryCreated) {
-      if (command.isSkipLibraryModifications()) {
-        LOG.info(
-            "As you have skipped the automatic transparency-modifications, you can set up the contents in this folder to your liking to achieve transparency.");
-      } else {
-        LOG.info(
-            "The library has been set up with the automatic transparency-modifications applied. However, you can still safely apply additional changes, if you're not fully happy with the result.");
-      }
-    } else {
-      LOG.info("If you wish to re-generate this library, have a look at the '-r' parameter.");
-    }
-    LOG.info("If additional overlays should be added later on, simply re-run this command.");
-    LOG.info("For help or newer versions, check out {}.", GITHUB_URL);
-    LOG.info("Always Three Greens!");
   }
 }
