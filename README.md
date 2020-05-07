@@ -10,6 +10,8 @@ Here's a screenshot of Queenstown ***without*** Transparency4Ortho applied:
 And here the scene ***with*** Transparency4Ortho: 
 ![Queenstown with Transparency4Ortho](https://i.imgur.com/6hpx5jt.jpg)
 
+[Here are more impressions from different areas of the world](https://imgur.com/gallery/7lyOrTj)
+
 ## How does it work?
 The tool automates the following steps to achieve transparent roads:
 1. Transparency4Ortho creates a copy of your X-Planes default library `X-Plane 11/Resources/default scenery/1000 roads` under `X-Plane 11/Custom Scenery/Transparency4Orth`. 
