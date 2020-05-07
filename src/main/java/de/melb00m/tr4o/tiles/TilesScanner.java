@@ -2,8 +2,10 @@ package de.melb00m.tr4o.tiles;
 
 import de.melb00m.tr4o.app.Transparency4Ortho;
 import de.melb00m.tr4o.exceptions.Exceptions;
-import de.melb00m.tr4o.misc.LazyAttribute;
+import de.melb00m.tr4o.helper.FileHelper;
+import de.melb00m.tr4o.helper.OutputHelper;
 import de.melb00m.tr4o.misc.Verify;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -64,12 +66,12 @@ public class TilesScanner {
 
   private final Transparency4Ortho command;
   private final Path xPlaneRootDir;
-  private final LazyAttribute<Set<Path>> sceneryDirectories;
+  private final Set<Path> sceneryDirectories;
 
   public TilesScanner(final Transparency4Ortho command) {
     this.command = command;
     this.xPlaneRootDir = command.getXPlanePath();
-    this.sceneryDirectories = new LazyAttribute<>(this::calcXplaneSceneryFolders);
+    this.sceneryDirectories = calcXplaneSceneryFolders();
   }
 
   private Set<Path> calcXplaneSceneryFolders() {
@@ -96,7 +98,8 @@ public class TilesScanner {
    */
   public TilesScannerResult scanForOrthoScenery() {
     final var orthoFolderToDsfMap = new HashMap<Path, Path>();
-    final var orthoFolders = command.getOrthoSceneryPaths().orElseGet(this::findOrthoDirectories);
+    final var orthoFolders =
+        findOrthoDirectories(command.getOrthoSceneryPaths().orElse(sceneryDirectories));
 
     orthoFolders.forEach(
         folder ->
@@ -113,14 +116,13 @@ public class TilesScanner {
     return new TilesScannerResult(orthoFolderToDsfMap);
   }
 
-  private Set<Path> findOrthoDirectories() {
+  private Set<Path> findOrthoDirectories(final Collection<Path> in) {
     LOG.info("Scanning your X-Plane installation for ortho-sceneries (this may take a moment)");
-    final var orthos =
-        sceneryDirectories.get().stream()
-            .filter(this::isPotentialOrthoTilesDirectory)
-            .collect(Collectors.toUnmodifiableSet());
-    LOG.info("{} ortho-sceneries found in total", orthos.size());
-    return orthos;
+    return OutputHelper.maybeShowWithProgressBar(
+            "Scanning for Orthos", in.stream(), Level.TRACE, command)
+        .flatMap(FileHelper::walk)
+        .filter(this::isPotentialOrthoTilesDirectory)
+        .collect(Collectors.toSet());
   }
 
   private Set<Path> getDsfFilesFromPath(final Path source) {
@@ -135,6 +137,13 @@ public class TilesScanner {
   }
 
   private boolean isPotentialOrthoTilesDirectory(final Path dir) {
+    // must be part of scenery directories
+    if (!sceneryDirectories.contains(dir.toAbsolutePath())) {
+      LOG.trace(
+          "{} is NOT an (active) ortho folder, as it is not contained in the scenery_pack.ini",
+          dir);
+      return false;
+    }
     // basic check: needs to be a directory and contain Earth nav data
     if (!Files.isDirectory(dir.resolve(EARTH_NAV_DATA))) {
       LOG.trace(

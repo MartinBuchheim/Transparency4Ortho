@@ -13,7 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * Various helpers for file-based operations that make file handling possible in lambdas due to not
@@ -80,7 +80,7 @@ public final class FileHelper {
     try (final var stream = Files.walk(source)) {
       var digest = MessageDigest.getInstance("MD5");
       stream.filter(Files::isRegularFile).forEachOrdered(file -> digest.update(readAllBytes(file)));
-      return bytesToHex(digest.digest());
+      return OutputHelper.bytesToHex(digest.digest());
     } catch (IOException | NoSuchAlgorithmException e) {
       throw Exceptions.unrecoverable(e);
     }
@@ -94,10 +94,19 @@ public final class FileHelper {
     }
   }
 
-  public static String bytesToHex(final byte[] bytes) {
-    return IntStream.range(0, bytes.length)
-        .map(idx -> bytes[idx] & 0xff)
-        .mapToObj(in -> String.format("%02x", in))
-        .collect(Collectors.joining());
+  public static Stream<Path> walk(final Path path, int maxDepth) {
+    try {
+      return Files.walk(path, maxDepth);
+    } catch (IOException e) {
+      throw Exceptions.unrecoverable(e);
+    }
+  }
+
+  public static Stream<Path> walk(final Path path) {
+    try {
+      return Files.walk(path);
+    } catch (IOException e) {
+      throw Exceptions.unrecoverable(e);
+    }
   }
 }
