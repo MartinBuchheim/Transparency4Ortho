@@ -3,10 +3,10 @@ package de.melb00m.tr4o.app;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import de.melb00m.tr4o.app.subcommands.LibraryRegeneration;
-import de.melb00m.tr4o.app.subcommands.OverlayTransformation;
+import de.melb00m.tr4o.app.subcommands.TransparentRoadsGenerator;
 import de.melb00m.tr4o.exceptions.Exceptions;
-import de.melb00m.tr4o.misc.Verify;
 import de.melb00m.tr4o.misc.LazyAttribute;
+import de.melb00m.tr4o.misc.Verify;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,11 +31,10 @@ import java.util.Set;
     name = "Transparency4Ortho",
     mixinStandardHelpOptions = true,
     abbreviateSynopsis = true,
-    version = "Transparency4Ortho v0.1.0-rc1",
+    version = "Transparency4Ortho v0.1.0-rc2",
     header = "Transparent Roads for Ortho-Covered Scenery in X-Plane 11",
     footer =
-        "For information on how this application operates, and the changes it applies to your ortho-overlay tiles, "
-            + "please refer to the documentation at \nhttps://github.com/melb00m/Transparency4Ortho")
+        "For information on how this application operates, please refer to the documentation at \nhttps://github.com/melb00m/Transparency4Ortho")
 public final class Transparency4Ortho implements Runnable {
 
   public static final Config CONFIG = ConfigFactory.defaultApplication().resolve();
@@ -48,14 +47,20 @@ public final class Transparency4Ortho implements Runnable {
       index = "1",
       arity = "0..*",
       description =
-          "Paths to folders containing overlays of ortho-sceneries. Can also point to a folder which contains multiple overlay-folders."
-              + "If none is given, the application will scan your X-Plane folder for overlays automatically.")
-  private Set<Path> overlayPath;
+          "Paths to ortho-scenery folder(s). If none is given, the application will scan your X-Plane folder for overlays automatically.")
+  private Set<Path> orthoPath;
 
   @CommandLine.Option(
-      names = {"-r", "--regenerateLibrary"},
-      description = "Re-generates the Transparency4Ortho library-folder and then exits.")
+      names = {"--regenerateLibrary"},
+      description = "Removes and re-creates the Transparency4Ortho library folder, then exits.")
   private boolean regenerateLibraryMode;
+
+  @CommandLine.Option(
+      names = {"-r", "--removeExistingRegions"},
+      description =
+          "When generating the library-definitions, do not keep the transparency-assignments from previous runs active. "
+              + "In other words: only the ortho-sceneries found in this run will have transparent roads afterwards.")
+  private boolean removeExistingEntries;
 
   @CommandLine.Option(
       names = {"-v", "--verbose"},
@@ -68,12 +73,6 @@ public final class Transparency4Ortho implements Runnable {
   private boolean trace;
 
   @CommandLine.Option(
-      names = {"-b", "--backupFolder"},
-      description =
-          "Alternate folder where backups of overlays will be stored. Default is <X-Plane Folder>/Transparency4Ortho/Backups.")
-  private Path backupPath;
-
-  @CommandLine.Option(
       names = {"-s", "--skipLibraryModifications"},
       description =
           "Skip automatic modifications to the Transparency4Ortho library. Can be useful if you want to apply a custom transparency mod manually.")
@@ -84,26 +83,11 @@ public final class Transparency4Ortho implements Runnable {
       description = "Ignores checksum mismatches on the default X-Plane roads-library.")
   private boolean ignoreChecksumErrors;
 
-  @CommandLine.Option(
-      names = "--dsfTool",
-      description =
-          "Path to the DSFTool. If not given, an attempt is made to download it automatically from the X-Plane developer website (if necessary).")
-  private Path dsfToolExecutable;
-
-  @CommandLine.Option(
-      names = "--noDownloads",
-      description = "Disable automatic download attempts for retrieving the DSFTool.")
-  private boolean forbidAutoDownload;
-
   private Level consoleLogLevel = Level.INFO;
   private LazyAttribute<Path> applicationFolder = new LazyAttribute<>(this::calcApplicationPath);
 
   public static void main(String[] args) {
     new CommandLine(new Transparency4Ortho()).execute(args);
-  }
-
-  public Optional<Path> getDsfToolExecutable() {
-    return null != dsfToolExecutable ? Optional.of(dsfToolExecutable) : Optional.empty();
   }
 
   public Level getConsoleLogLevel() {
@@ -114,20 +98,20 @@ public final class Transparency4Ortho implements Runnable {
     return ignoreChecksumErrors;
   }
 
-  public boolean isForbidAutoDownload() {
-    return forbidAutoDownload;
-  }
-
-  public Optional<Path> getBackupPath() {
-    return null != backupPath ? Optional.of(backupPath) : Optional.empty();
-  }
-
   public boolean isSkipLibraryModifications() {
     return skipLibraryModifications;
   }
 
   public Path getApplicationFolder() {
     return applicationFolder.get();
+  }
+
+  public boolean isRegenerateLibraryMode() {
+    return regenerateLibraryMode;
+  }
+
+  public boolean isRemoveExistingEntries() {
+    return removeExistingEntries;
   }
 
   @Override
@@ -141,7 +125,7 @@ public final class Transparency4Ortho implements Runnable {
       if (regenerateLibraryMode) {
         new LibraryRegeneration(this).run();
       } else {
-        new OverlayTransformation(this).run();
+        new TransparentRoadsGenerator(this).run();
       }
     } catch (IllegalArgumentException e) {
       LOG.error("ERROR: {}", e.getMessage(), e);
@@ -171,13 +155,13 @@ public final class Transparency4Ortho implements Runnable {
   private void verifyBasicParameters() {
     Verify.withErrorMessage("X-Plane path is not a valid folder: %s", this::getXPlanePath)
         .argument(Files.isDirectory(getXPlanePath()));
-    getOverlayPaths()
+    getOrthoSceneryPaths()
         .ifPresent(
             overlays ->
                 overlays.forEach(
                     ovl ->
                         Verify.withErrorMessage(
-                                "Overlay path does not point to a valid folder: %s", ovl)
+                                "Ortho path does not point to a valid folder: %s", ovl)
                             .argument(Files.isDirectory(ovl))));
   }
 
@@ -185,10 +169,8 @@ public final class Transparency4Ortho implements Runnable {
     return xPlanePath;
   }
 
-  public Optional<Set<Path>> getOverlayPaths() {
-    return null != overlayPath && !overlayPath.isEmpty()
-        ? Optional.of(overlayPath)
-        : Optional.empty();
+  public Optional<Set<Path>> getOrthoSceneryPaths() {
+    return null != orthoPath && !orthoPath.isEmpty() ? Optional.of(orthoPath) : Optional.empty();
   }
 
   private Path calcApplicationPath() {

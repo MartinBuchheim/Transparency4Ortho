@@ -15,8 +15,8 @@ public final class CollectionHelper {
   private CollectionHelper() {}
 
   /**
-   * Uses the given {@code predicates} to reduce the given {@code map} to entries of which the
-   * keys fulfill all predicates.
+   * Uses the given {@code predicates} to reduce the given {@code map} to entries of which the keys
+   * fulfill all predicates.
    *
    * @param map Map to filter
    * @param predicates Predicates for filtering (all must be matched)

@@ -1,10 +1,9 @@
 plugins {
     id 'application'
-    id 'net.nemerosa.versioning' version '2.8.2'
 }
 
 group 'de.melb00m'
-version '0.1.0-rc1'
+version '0.1.0-rc2'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -18,7 +17,7 @@ compileJava {
 jar {
     manifest {
         attributes(
-                'Implementation-Version':   getArchiveVersion()
+                'Implementation-Version': getArchiveVersion()
         )
     }
 }
@@ -34,11 +33,11 @@ repositories {
 dependencies {
     implementation 'org.apache.commons:commons-collections4:4.4'
     implementation 'org.apache.commons:commons-lang3:3.10'
-    implementation 'me.tongfei:progressbar:0.8.1'
     implementation 'org.apache.logging.log4j:log4j-api:2.13.2'
     implementation 'org.apache.logging.log4j:log4j-core:2.13.2'
     implementation 'com.typesafe:config:1.4.0'
     implementation 'info.picocli:picocli:4.2.0'
+    implementation 'me.tongfei:progressbar:0.8.1'
     annotationProcessor 'info.picocli:picocli-codegen:4.2.0'
 
     //testImplementation 'junit:junit:4.13'

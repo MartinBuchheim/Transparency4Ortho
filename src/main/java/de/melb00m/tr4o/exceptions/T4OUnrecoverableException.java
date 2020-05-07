@@ -3,7 +3,7 @@ package de.melb00m.tr4o.exceptions;
 /**
  * {@link RuntimeException}-subclass that wraps another (typically checked) exception.
  *
- * @see Exceptions#unrecoverable(Throwable) 
+ * @see Exceptions#unrecoverable(Throwable)
  * @author Martin Buchheim
  */
 public class T4OUnrecoverableException extends RuntimeException {
