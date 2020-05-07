@@ -10,7 +10,7 @@ Here's a screenshot of Queenstown ***without*** Transparency4Ortho applied:
 And here the scene ***with*** Transparency4Ortho: 
 ![Queenstown with Transparency4Ortho](https://i.imgur.com/6hpx5jt.jpg)
 
-[Here are more impressions from different areas of the world](https://imgur.com/gallery/7lyOrTj)
+[Here are more impressions from different areas of the world](https://imgur.com/a/AgfuG9n)
 
 ## How does it work?
 The tool automates the following steps to achieve transparent roads:
