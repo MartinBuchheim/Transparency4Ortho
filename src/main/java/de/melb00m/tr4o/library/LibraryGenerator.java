@@ -8,9 +8,7 @@ import de.melb00m.tr4o.tiles.Tile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -149,7 +147,6 @@ public class LibraryGenerator {
     FileHelper.copyRecursively(
         roadsLibrarySourceFolder,
         roadLibraryTargetFolder,
-        Collections.emptySet(),
         roadsLibraryExcludes.toArray(new Path[0]));
   }
 
@@ -206,44 +203,28 @@ public class LibraryGenerator {
     }
   }
 
-  private void validateExistingLibrary() throws IOException {
-    LOG.info("Verifying that the existing library at {} can be used", libraryFolder);
-    Verify.withErrorMessage(
-            "Can't read the 'library.txt' file in the existing library: %s", libraryDefinitionFile)
-        .state(Files.isReadable(libraryDefinitionFile));
-    final var containedLines = Files.readAllLines(libraryDefinitionFile);
-    roadsLibraryExportDefinitions.forEach(
-        exp -> {
-          final var expSearch = String.format(EXPORT_DIRECTIVE, libraryPrefix, exp, "");
-          Verify.withErrorMessage(
-                  "Could not find expected export '%s' in existing library: %s",
-                  expSearch, libraryDefinitionFile)
-              .state(containedLines.stream().anyMatch(line -> line.startsWith(expSearch)));
-        });
-  }
-
   /**
    * Generates the library.txt file containing with the given tiles mapped to our road-network
    * definitions.
    *
    * @param tiles Tiles for which to use the modded road networks
-   * @param keepExistingTiles Keep existing definitions intact
+   * @param removeExistingEntries Keep existing definitions intact
    * @throws IOException I/O Exception
    */
-  public void generateLibraryTxt(final Collection<Tile> tiles, final boolean keepExistingTiles) {
+  public void generateLibraryTxt(
+      final Collection<Tile> tiles, final boolean removeExistingEntries) {
     LOG.info("Generating library at {}", libraryDefinitionFile);
     final var regionName = command.config().getString("libgen.generation.region-name");
     try {
       // set header
-      final var libraryLines =
-          new ArrayList<>(LIB_TXT_HEADERS);
+      final var libraryLines = new ArrayList<>(LIB_TXT_HEADERS);
 
       // add region definition
       libraryLines.add(String.format(REGION_DEFINE_FORMAT, regionName));
 
       // add region-rects
       final var regionRects = new TreeSet<String>();
-      if (keepExistingTiles) {
+      if (!removeExistingEntries) {
         regionRects.addAll(fetchExistingRegionRects(libraryDefinitionFile));
         LOG.debug("{} tile-definitions from previous runs will be kept", regionRects.size());
       }
@@ -284,20 +265,6 @@ public class LibraryGenerator {
         .state(Files.exists(fileLocation));
     final var relativePath = libraryFolder.relativize(fileLocation).toString().replace('\\', '/');
     return String.format(EXPORT_DIRECTIVE, libraryPrefix, exportName, relativePath);
-  }
-
-  private String retrieveLibraryTemplate() throws IOException {
-    final var templateRes =
-        getClass()
-            .getClassLoader()
-            .getResource(command.config().getString("libgen.generation.template-resource"));
-    Verify.withErrorMessage("Can't retrieve library-template from classloader")
-        .state(templateRes != null);
-
-    try (final var templateReader =
-        new BufferedReader(new InputStreamReader(templateRes.openStream()))) {
-      return templateReader.lines().collect(Collectors.joining(System.lineSeparator()));
-    }
   }
 
   /**

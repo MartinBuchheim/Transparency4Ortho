@@ -4,19 +4,16 @@ import de.melb00m.tr4o.exceptions.Exceptions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.channels.Channels;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Various helpers for file-based operations that make file handling possible in lambdas due to not
@@ -33,10 +30,7 @@ public final class FileHelper {
   private FileHelper() {}
 
   public static void copyRecursively(
-      final Path source,
-      final Path target,
-      final Set<FileVisitOption> options,
-      final Path... exclusions) {
+      final Path source, final Path target, final Path... exclusions) {
     final var exclusionSet = Set.of(exclusions);
     try (var stream = Files.walk(source)) {
       for (final var fileToCopy : stream.filter(Files::isRegularFile).collect(Collectors.toSet())) {
@@ -60,40 +54,9 @@ public final class FileHelper {
     }
   }
 
-  public static String getFilenameWithoutExtension(final Path path) {
-    return removeFileExtension(path.getFileName().toString());
-  }
-
   public static String removeFileExtension(final String path) {
     var idx = path.lastIndexOf('.');
     return idx > 0 ? path.substring(0, idx) : path;
-  }
-
-  public static String extractFileNameFromPath(final String path) {
-    var idx = path.replace('\\', '/').lastIndexOf('/');
-    return idx > 0 ? path.substring(idx + 1) : path;
-  }
-
-  public static void downloadFile(URL sourceUrl, Path targetFile) throws IOException {
-    try (var downloadStream = Channels.newChannel(sourceUrl.openStream());
-        var downloadTargetStream = new FileOutputStream(targetFile.toFile()).getChannel()) {
-      LOG.trace("Downloading file from {} to {}...", sourceUrl, targetFile);
-      downloadTargetStream.transferFrom(downloadStream, 0, Long.MAX_VALUE);
-    }
-  }
-
-  public static Path createAutoCleanedTempDir(
-      final Path baseFolder, final Optional<String> prefix) {
-    try {
-      if (!Files.exists(baseFolder)) {
-        Files.createDirectories(baseFolder);
-      }
-      final var tempDir = Files.createTempDirectory(baseFolder, prefix.orElse(null));
-      Runtime.getRuntime().addShutdownHook(new Thread(() -> deleteRecursively(tempDir)));
-      return tempDir;
-    } catch (IOException e) {
-      throw Exceptions.unrecoverable(e);
-    }
   }
 
   public static void deleteRecursively(final Path path) {
@@ -117,7 +80,7 @@ public final class FileHelper {
     try (final var stream = Files.walk(source)) {
       var digest = MessageDigest.getInstance("MD5");
       stream.filter(Files::isRegularFile).forEachOrdered(file -> digest.update(readAllBytes(file)));
-      return OutputHelper.bytesToHex(digest.digest());
+      return bytesToHex(digest.digest());
     } catch (IOException | NoSuchAlgorithmException e) {
       throw Exceptions.unrecoverable(e);
     }
@@ -129,5 +92,12 @@ public final class FileHelper {
     } catch (IOException e) {
       throw Exceptions.unrecoverable(e);
     }
+  }
+
+  public static String bytesToHex(final byte[] bytes) {
+    return IntStream.range(0, bytes.length)
+        .map(idx -> bytes[idx] & 0xff)
+        .mapToObj(in -> String.format("%02x", in))
+        .collect(Collectors.joining());
   }
 }
