@@ -44,14 +44,14 @@ For example:
 
 ( Note that the quotation marks around the folder-names are a thing of the Windows CMD shell, not a syntax required by Transparency4Ortho. Other shells and operating systems do it differently. )
 
-### Manual selection of overlays:
+### Manual selection of ortho scenery:
 Used like the automatic command above, but after the X-Plane folder specify any number of ortho-scenery folders you want to include. 
 
 `Transparency4Ortho <path-to-xplane> <path-to-ortho> [<path-to-more-ortho>...]`
 
 For example:
 
-`Transparency4Ortho "E:\Games\X-Plane 11" "L:\Ortho4XP\Scenery\Tiles" "L:\Ortho4XP\Overlays\Forkboy US\yOrtho4XP_Arizona"`
+`Transparency4Ortho "E:\Games\X-Plane 11" "L:\Ortho4XP\Scenery\Tiles" "L:\Ortho4XP\Scenery\Forkboy US\yOrtho4XP_Arizona"`
 
 Note that you can also use a folder that contains multiple ortho-folders in it's file-structure below as a parameter - Transparency4Ortho will detect those. You can not, however, use only certain tiles inside an ortho-folder. In other words, if you have this structure:
 
