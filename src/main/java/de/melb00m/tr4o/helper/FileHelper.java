@@ -1,29 +1,23 @@
 package de.melb00m.tr4o.helper;
 
 import de.melb00m.tr4o.exceptions.Exceptions;
-import org.apache.commons.collections4.MultiValuedMap;
-import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.channels.Channels;
 import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
- * Various helpers for file-based operations that make file handling possible
- * in lambdas due to not declaring any {@link IOException}s.
+ * Various helpers for file-based operations that make file handling possible in lambdas due to not
+ * declaring any {@link IOException}s.
  *
  * @author Martin Buchheim
  */
@@ -36,55 +30,28 @@ public final class FileHelper {
   private FileHelper() {}
 
   public static void copyRecursively(
-      final Path source,
-      final Path target,
-      final Set<FileVisitOption> options,
-      final Path... exclusions) {
-    try {
-      for (var sourcePath : getAllPathsRecursively(source, true, options, exclusions)) {
-        var copyToPath = target.resolve(source.relativize(sourcePath));
-        if (copyToPath != target) {
-          Files.copy(sourcePath, copyToPath);
+      final Path source, final Path target, final Path... exclusions) {
+    final var exclusionSet = Set.of(exclusions);
+    try (var stream = Files.walk(source)) {
+      for (final var fileToCopy : stream.filter(Files::isRegularFile).collect(Collectors.toSet())) {
+        if (exclusionSet.contains(fileToCopy)) {
+          LOG.trace("Skipping copy of file as it is excluded: {}", fileToCopy);
+          continue;
         }
+        final var targetPath = target.resolve(source.relativize(fileToCopy));
+        if (Files.exists(targetPath)) {
+          LOG.warn(
+              "File will {} not be copied to {}, as a file with that name already exists",
+              fileToCopy,
+              targetPath);
+          continue;
+        }
+        Files.createDirectories(targetPath.getParent());
+        Files.copy(fileToCopy, targetPath);
       }
     } catch (IOException ex) {
       throw Exceptions.unrecoverable(ex);
     }
-  }
-
-  public static List<Path> getAllPathsRecursively(
-      final Path source,
-      final boolean includeDirectories,
-      final Set<FileVisitOption> options,
-      final Path... exclusions) {
-    if (!Files.exists(source)) {
-      return Collections.emptyList();
-    }
-    final var collector = new ExclusionAwareFileCollector(Set.of(exclusions), includeDirectories);
-    try {
-      Files.walkFileTree(source, options, Integer.MAX_VALUE, collector);
-      return collector.getCollectedFiles();
-    } catch (IOException ex) {
-      throw Exceptions.unrecoverable(ex);
-    }
-  }
-
-  public static MultiValuedMap<String, Path> searchFileNamesRecursively(
-      final Path searchDir,
-      final Collection<String> fileNames,
-      final Set<FileVisitOption> options,
-      final Path... exclusions) {
-    final var searchNames = Set.copyOf(fileNames);
-    final var matches = new HashSetValuedHashMap<String, Path>();
-
-    getAllPathsRecursively(searchDir, false, options, exclusions).stream()
-        .filter(file -> searchNames.contains(file.getFileName().toString()))
-        .forEach(match -> matches.put(match.getFileName().toString(), match));
-    return matches;
-  }
-
-  public static String getFilenameWithoutExtension(final Path path) {
-    return removeFileExtension(path.getFileName().toString());
   }
 
   public static String removeFileExtension(final String path) {
@@ -92,44 +59,25 @@ public final class FileHelper {
     return idx > 0 ? path.substring(0, idx) : path;
   }
 
-  public static String extractFileNameFromPath(final String path) {
-    var idx = path.replace('\\', '/').lastIndexOf('/');
-    return idx > 0 ? path.substring(idx + 1) : path;
-  }
-
-  public static void downloadFile(URL sourceUrl, Path targetFile) throws IOException {
-    try (var downloadStream = Channels.newChannel(sourceUrl.openStream());
-        var downloadTargetStream = new FileOutputStream(targetFile.toFile()).getChannel()) {
-      LOG.trace("Downloading file from {} to {}...", sourceUrl, targetFile);
-      downloadTargetStream.transferFrom(downloadStream, 0, Long.MAX_VALUE);
+  public static void deleteRecursively(final Path path) {
+    if (!Files.exists(path)) {
+      return;
     }
+    FileHelper.walk(path, 1).filter(inner -> inner != path).forEach(inner -> {
+      if (Files.isDirectory(inner)) {
+        deleteRecursively(inner);
+      } else {
+        deleteIfExists(inner);
+      }
+    });
+    deleteIfExists(path);
   }
 
-  public static Path createAutoCleanedTempDir(
-      final Path baseFolder, final Optional<String> prefix) {
+  private static void deleteIfExists(final Path path) {
     try {
-      if (!Files.exists(baseFolder)) {
-        Files.createDirectories(baseFolder);
-      }
-      final var tempDir = Files.createTempDirectory(baseFolder, prefix.orElse(null));
-      Runtime.getRuntime()
-          .addShutdownHook(new Thread(() -> deleteRecursively(tempDir, Collections.emptySet())));
-      return tempDir;
+      Files.deleteIfExists(path);
     } catch (IOException e) {
       throw Exceptions.unrecoverable(e);
-    }
-  }
-
-  public static void deleteRecursively(
-      final Path folder, final Set<FileVisitOption> options, final Path... exclusions) {
-    try {
-      final var filesToDelete = getAllPathsRecursively(folder, true, options, exclusions);
-      Collections.reverse(filesToDelete); // will put the nested elements first
-      for (Path path : filesToDelete) {
-        Files.deleteIfExists(path);
-      }
-    } catch (IOException ex) {
-      throw Exceptions.unrecoverable(ex);
     }
   }
 
@@ -146,6 +94,22 @@ public final class FileHelper {
   public static byte[] readAllBytes(final Path file) {
     try {
       return Files.readAllBytes(file);
+    } catch (IOException e) {
+      throw Exceptions.unrecoverable(e);
+    }
+  }
+
+  public static Stream<Path> walk(final Path path, int maxDepth) {
+    try {
+      return Files.walk(path, maxDepth);
+    } catch (IOException e) {
+      throw Exceptions.unrecoverable(e);
+    }
+  }
+
+  public static Stream<Path> walk(final Path path) {
+    try {
+      return Files.walk(path);
     } catch (IOException e) {
       throw Exceptions.unrecoverable(e);
     }
