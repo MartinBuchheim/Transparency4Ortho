@@ -60,19 +60,24 @@ public final class FileHelper {
   }
 
   public static void deleteRecursively(final Path path) {
-    if (Files.exists(path)) {
+    if (!Files.exists(path)) {
       return;
     }
-    try (final var stream = Files.walk(path, 1)) {
-      for (final var pathToDelete : stream.collect(Collectors.toSet())) {
-        if (Files.isRegularFile(pathToDelete)) {
-          Files.delete(pathToDelete);
-        } else if (Files.isDirectory(pathToDelete)) {
-          deleteRecursively(pathToDelete);
-        }
+    FileHelper.walk(path, 1).filter(inner -> inner != path).forEach(inner -> {
+      if (Files.isDirectory(inner)) {
+        deleteRecursively(inner);
+      } else {
+        deleteIfExists(inner);
       }
-    } catch (IOException ex) {
-      throw Exceptions.unrecoverable(ex);
+    });
+    deleteIfExists(path);
+  }
+
+  private static void deleteIfExists(final Path path) {
+    try {
+      Files.deleteIfExists(path);
+    } catch (IOException e) {
+      throw Exceptions.unrecoverable(e);
     }
   }
 

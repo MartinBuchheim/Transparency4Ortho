@@ -2,14 +2,13 @@ package de.melb00m.tr4o.tiles;
 
 import de.melb00m.tr4o.helper.FileHelper;
 import de.melb00m.tr4o.misc.LazyAttribute;
+import org.apache.commons.collections4.MultiMapUtils;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import org.apache.commons.collections4.multimap.UnmodifiableMultiValuedMap;
 
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -22,11 +21,11 @@ import java.util.Set;
  */
 public class TilesScannerResult {
 
-  private final Map<Path, Path> orthoFolderToDsfMap;
+  private final MultiValuedMap<Path, Path> orthoFolderToDsfMap;
   private final LazyAttribute<MultiValuedMap<Tile, Path>> tileToOrthoDsfMap;
 
-  TilesScannerResult(final Map<Path, Path> orthoFolderToDsfMap) {
-    this.orthoFolderToDsfMap = Collections.unmodifiableMap(orthoFolderToDsfMap);
+  TilesScannerResult(final MultiValuedMap<Path, Path> orthoFolderToDsfMap) {
+    this.orthoFolderToDsfMap = MultiMapUtils.unmodifiableMultiValuedMap(orthoFolderToDsfMap);
     this.tileToOrthoDsfMap =
         new LazyAttribute<>(() -> extractTileMap(this.orthoFolderToDsfMap.values()));
   }
@@ -51,7 +50,7 @@ public class TilesScannerResult {
   }
 
   /** @return Found ortho-DSF files mapped against the ortho-directory */
-  public Map<Path, Path> getOrthoFolderToDsfMap() {
+  public MultiValuedMap<Path, Path> getOrthoFolderToDsfMap() {
     return orthoFolderToDsfMap;
   }
 }
