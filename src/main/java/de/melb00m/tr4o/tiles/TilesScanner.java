@@ -4,7 +4,6 @@ import de.melb00m.tr4o.app.Transparency4Ortho;
 import de.melb00m.tr4o.exceptions.Exceptions;
 import de.melb00m.tr4o.misc.LazyAttribute;
 import de.melb00m.tr4o.misc.Verify;
-import org.apache.commons.collections4.SetUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,7 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -29,7 +27,6 @@ import java.util.stream.Collectors;
  * detection-methods. The interpretation of the results, such as cross-referencing the detected
  * overlay- and scenery-tiles, is done in the {@link TilesScannerResult}-class.
  *
- * @see OverlayTileTransformer
  * @see TilesScannerResult
  */
 public class TilesScanner {
@@ -44,21 +41,6 @@ public class TilesScanner {
   private static final Pattern SCENERY_PACK_ENTRY_PATTERN =
       Pattern.compile(
           Transparency4Ortho.CONFIG.getString("overlay-scanner.regex.scenery-pack-entry"));
-  private static final Set<Pattern> OVERLAY_FOLDER_NAME_PATTERNS =
-      Transparency4Ortho.CONFIG
-          .getStringList("overlay-scanner.detection.overlays.folder-names-regex").stream()
-          .map(Pattern::compile)
-          .collect(Collectors.toUnmodifiableSet());
-  private static final Set<Path> OVERLAY_DETECTION_EXCLUDERS =
-      Transparency4Ortho.CONFIG.getStringList("overlay-scanner.detection.overlays.excluder-files")
-          .stream()
-          .map(Path::of)
-          .collect(Collectors.toUnmodifiableSet());
-  private static final Set<Path> OVERLAY_DETECTION_INCLUDERS =
-      Transparency4Ortho.CONFIG.getStringList("overlay-scanner.detection.overlays.includer-files")
-          .stream()
-          .map(Path::of)
-          .collect(Collectors.toUnmodifiableSet());
   private static final Set<Pattern> ORTHO_FOLDER_NAME_PATTERNS =
       Transparency4Ortho.CONFIG.getStringList("overlay-scanner.detection.orthos.folder-names-regex")
           .stream()
@@ -112,74 +94,23 @@ public class TilesScanner {
    *
    * @return Result of the scan
    */
-  public TilesScannerResult scanOverlaysAndOrthos() {
-    final var ovlFolderToTilesMapping = new HashMap<Path, Path>();
-    final var orthoFolderToTilesMapping = new HashMap<Path, Path>();
-    findOverlayDirectories()
-        .forEach(
-            dir ->
-                getDsfFilesFromPath(dir.resolve(EARTH_NAV_DATA))
-                    .forEach(ovl -> ovlFolderToTilesMapping.put(ovl, dir)));
-    findOrthoDirectories()
-        .forEach(
-            dir ->
-                getDsfFilesFromPath(dir.resolve(EARTH_NAV_DATA))
-                    .forEach(ortho -> orthoFolderToTilesMapping.put(ortho, dir)));
+  public TilesScannerResult scanForOrthoScenery() {
+    final var orthoFolderToDsfMap = new HashMap<Path, Path>();
+    final var orthoFolders = command.getOrthoSceneryPaths().orElseGet(this::findOrthoDirectories);
 
-    // Validate the scenery-folders are distinct
-    final var intersect =
-        SetUtils.intersection(
-            Set.copyOf(ovlFolderToTilesMapping.values()),
-            Set.copyOf(orthoFolderToTilesMapping.values()));
+    orthoFolders.forEach(
+        folder ->
+            Verify.withErrorMessage(
+                    "Ortho-scenery does not contain required '%s'-folder: %s",
+                    EARTH_NAV_DATA, folder)
+                .argument(Files.isDirectory(folder.resolve(EARTH_NAV_DATA))));
 
-    Verify.withErrorMessage(
-            "These directories are used as ortho AND overlay directories: %s", intersect::toArray)
-        .state(intersect.isEmpty());
+    orthoFolders.forEach(
+        dir ->
+            getDsfFilesFromPath(dir.resolve(EARTH_NAV_DATA))
+                .forEach(dsf -> orthoFolderToDsfMap.put(dir, dsf)));
 
-    return new TilesScannerResult(ovlFolderToTilesMapping, orthoFolderToTilesMapping);
-  }
-
-  private Set<Path> findOverlayDirectories() {
-    final var autoScan = command.getOverlayPaths().isEmpty();
-    final var scanBaseFolders = command.getOverlayPaths().orElseGet(sceneryDirectories::get);
-    final var overlayFolders = new HashSet<Path>();
-
-    if (autoScan) {
-      // if using auto-scan, we check all directories in the scenery-pack if they are potential
-      // overlay-tiles
-      LOG.info(
-          "Scanning your X-Plane installation for overlay-directories (this may take a moment)");
-      scanBaseFolders.stream()
-          .filter(this::isPotentialOverlayTilesDirectory)
-          .forEach(overlayFolders::add);
-    } else {
-      // if using user-provided folders, all subfolders that contain an Earth nav data folder are
-      // considered overlay-folders
-      LOG.info("Retrieving overlay-directories from given overlay base-folders");
-      for (Path baseFolder : scanBaseFolders) {
-        try (final var stream = Files.walk(baseFolder)) {
-          stream
-              .filter(path -> Files.exists(path.resolve(EARTH_NAV_DATA)))
-              .forEach(overlayFolders::add);
-        } catch (IOException e) {
-          throw new IllegalStateException(
-              String.format("Failed to retrieve overlay-directories below %s", e));
-        }
-      }
-    }
-    LOG.info("{} overlay-folders have been identified in total", overlayFolders.size());
-    return overlayFolders;
-  }
-
-  private Set<Path> getDsfFilesFromPath(final Path source) {
-    try (final var stream = Files.walk(source)) {
-      return stream
-          .filter(
-              path -> DSF_TILE_FILENAME_PATTERN.matcher(path.getFileName().toString()).matches())
-          .collect(Collectors.toUnmodifiableSet());
-    } catch (IOException e) {
-      throw Exceptions.unrecoverable(e);
-    }
+    return new TilesScannerResult(orthoFolderToDsfMap);
   }
 
   private Set<Path> findOrthoDirectories() {
@@ -192,32 +123,15 @@ public class TilesScanner {
     return orthos;
   }
 
-  private boolean isPotentialOverlayTilesDirectory(final Path dir) {
-    if (!Files.isDirectory(dir.resolve(EARTH_NAV_DATA))) {
-      LOG.trace(
-          "{} is not an overlay-folder as it does not contain an {} folder", dir, EARTH_NAV_DATA);
+  private Set<Path> getDsfFilesFromPath(final Path source) {
+    try (final var stream = Files.walk(source)) {
+      return stream
+          .filter(
+              path -> DSF_TILE_FILENAME_PATTERN.matcher(path.getFileName().toString()).matches())
+          .collect(Collectors.toUnmodifiableSet());
+    } catch (IOException e) {
+      throw Exceptions.unrecoverable(e);
     }
-    // may not contain any file that signals it is _not_ an overlay-scenery dir
-    var excluder = firstMatchInFolder(dir, OVERLAY_DETECTION_EXCLUDERS);
-    if (excluder.isPresent()) {
-      LOG.trace("{} is NOT an overlay-folder as it contains excluder-file {}", dir, excluder.get());
-      return false;
-    }
-    // well-known folder names that match overlay-scenery
-    if (OVERLAY_FOLDER_NAME_PATTERNS.stream()
-        .anyMatch(pattern -> pattern.matcher(dir.getFileName().toString()).matches())) {
-      LOG.trace("{} is likely an overlay-folder due to it's directory-name", dir);
-      return true;
-    }
-    // contained files that indicate overlay-scenery
-    var includer = firstMatchInFolder(dir, OVERLAY_DETECTION_INCLUDERS);
-    if (includer.isPresent()) {
-      LOG.trace(
-          "{} is likely an overlay-folder as it contains includer-file {}", dir, includer.get());
-      return true;
-    }
-    LOG.trace("{} is NOT an overlay-folder as nothing indicates it was", dir);
-    return false;
   }
 
   private boolean isPotentialOrthoTilesDirectory(final Path dir) {
