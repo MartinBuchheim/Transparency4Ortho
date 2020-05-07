@@ -4,6 +4,7 @@ import de.melb00m.tr4o.app.Transparency4Ortho;
 import de.melb00m.tr4o.exceptions.Exceptions;
 import de.melb00m.tr4o.helper.FileHelper;
 import de.melb00m.tr4o.misc.Verify;
+import de.melb00m.tr4o.tiles.Tile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -11,10 +12,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -38,9 +41,15 @@ public class LibraryGenerator {
 
   private static final Logger LOG = LogManager.getLogger(LibraryGenerator.class);
   private static final String EXPORT_DIRECTIVE =
-      Transparency4Ortho.CONFIG.getString("libgen.library.export-directive");
+      Transparency4Ortho.CONFIG.getString("libgen.generation.export-directive");
   private static final List<String> LIB_TXT_HEADERS =
-      Transparency4Ortho.CONFIG.getStringList("libgen.library.txt-header");
+      Transparency4Ortho.CONFIG.getStringList("libgen.generation.library-header");
+  private static final String REGION_RECT_FORMAT =
+      Transparency4Ortho.CONFIG.getString("libgen.generation.region-rect-format");
+  private static final String REGION_DEFINE_FORMAT =
+      Transparency4Ortho.CONFIG.getString("libgen.generation.region-define-format");
+  private static final String REGION_USE_FORMAT =
+      Transparency4Ortho.CONFIG.getString("libgen.generation.region-use-format");
 
   private final Transparency4Ortho command;
   private final String libraryPrefix;
@@ -55,7 +64,7 @@ public class LibraryGenerator {
   public LibraryGenerator(final Transparency4Ortho command) {
     this.command = command;
     final var xplanePath = command.getXPlanePath();
-    this.libraryPrefix = command.config().getString("libgen.library.prefix");
+    this.libraryPrefix = command.config().getString("libgen.generation.library-prefix");
     this.libraryFolder = xplanePath.resolve(command.config().getString("libgen.library.folder"));
     this.libraryDefinitionFile =
         xplanePath.resolve(command.config().getString("libgen.library.definition-file"));
@@ -86,8 +95,8 @@ public class LibraryGenerator {
   public boolean validateOrCreateLibrary() {
     synchronized (LibraryGenerator.class) {
       try {
-        if (Files.exists(libraryDefinitionFile)) {
-          validateExistingLibrary();
+        if (Files.exists(libraryFolder)) {
+          LOG.info("Transparency4Ortho library is already present: {}", libraryFolder);
           return false;
         }
         createLibrary();
@@ -99,22 +108,6 @@ public class LibraryGenerator {
     }
   }
 
-  private void validateExistingLibrary() throws IOException {
-    LOG.info("Verifying that the existing library at {} can be used", libraryFolder);
-    Verify.withErrorMessage(
-            "Can't read the 'library.txt' file in the existing library: %s", libraryDefinitionFile)
-        .state(Files.isReadable(libraryDefinitionFile));
-    final var containedLines = Files.readAllLines(libraryDefinitionFile);
-    roadsLibraryExportDefinitions.forEach(
-        exp -> {
-          final var expSearch = String.format(EXPORT_DIRECTIVE, libraryPrefix, exp, "");
-          Verify.withErrorMessage(
-                  "Could not find expected export '%s' in existing library: %s",
-                  expSearch, libraryDefinitionFile)
-              .state(containedLines.stream().anyMatch(line -> line.startsWith(expSearch)));
-        });
-  }
-
   private void createLibrary() throws IOException {
     Verify.withErrorMessage(
             "Can't find X-Plane default roads-library at expected location: %s",
@@ -123,7 +116,6 @@ public class LibraryGenerator {
     validateRoadsLibraryChecksum();
     copyLibraryFolder();
     applyLibraryModifications();
-    generateLibraryTxt();
   }
 
   private void validateRoadsLibraryChecksum() {
@@ -155,7 +147,6 @@ public class LibraryGenerator {
     FileHelper.copyRecursively(
         roadsLibrarySourceFolder,
         roadLibraryTargetFolder,
-        Collections.emptySet(),
         roadsLibraryExcludes.toArray(new Path[0]));
   }
 
@@ -212,32 +203,66 @@ public class LibraryGenerator {
     }
   }
 
-  private void generateLibraryTxt() throws IOException {
+  /**
+   * Generates the library.txt file containing with the given tiles mapped to our road-network
+   * definitions.
+   *
+   * @param tiles Tiles for which to use the modded road networks
+   * @param removeExistingEntries Keep existing definitions intact
+   * @throws IOException I/O Exception
+   */
+  public void generateLibraryTxt(
+      final Collection<Tile> tiles, final boolean removeExistingEntries) {
     LOG.info("Generating library at {}", libraryDefinitionFile);
-    Verify.withErrorMessage(
-            "Can't create new library.txt at %s: it already exists", libraryDefinitionFile)
-        .state(Files.notExists(libraryDefinitionFile));
+    final var regionName = command.config().getString("libgen.generation.region-name");
+    try {
+      // set header
+      final var libraryLines = new ArrayList<>(LIB_TXT_HEADERS);
 
-    // find our exported files in the folder
-    final var filesToExport =
-        roadsLibraryExportDefinitions.stream()
-            .map(roadLibraryTargetFolder::resolve)
-            .collect(Collectors.toUnmodifiableSet());
-    filesToExport.forEach(
-        export ->
-            Verify.withErrorMessage("File not found for export in library: %s", export)
-                .state(Files.exists(export)));
+      // add region definition
+      libraryLines.add(String.format(REGION_DEFINE_FORMAT, regionName));
 
-    // Generate the library.txt content-lines
-    final var libLines = new ArrayList<>(LIB_TXT_HEADERS);
-    filesToExport.stream()
-        .map(file -> buildExportDirective(file.getFileName().toString(), file))
-        .forEach(libLines::add);
+      // add region-rects
+      final var regionRects = new TreeSet<String>();
+      if (!removeExistingEntries) {
+        regionRects.addAll(fetchExistingRegionRects(libraryDefinitionFile));
+        LOG.debug("{} tile-definitions from previous runs will be kept", regionRects.size());
+      }
+      tiles.stream().map(this::formatTileToRegionRect).forEach(regionRects::add);
+      libraryLines.addAll(regionRects);
 
-    Files.write(libraryDefinitionFile, libLines);
+      // use region and append exports
+      libraryLines.add("");
+      libraryLines.add(String.format(REGION_USE_FORMAT, regionName));
+      roadsLibraryExportDefinitions.stream()
+          .map(export -> buildExportDirective(export, roadLibraryTargetFolder.resolve(export)))
+          .forEach(libraryLines::add);
+
+      Files.write(libraryDefinitionFile, libraryLines);
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          String.format("Failed to generate library.txt at: %s", libraryDefinitionFile), e);
+    }
+  }
+
+  private Set<String> fetchExistingRegionRects(final Path libraryTxt) throws IOException {
+    if (!Files.exists(libraryTxt)) {
+      return Collections.emptySet();
+    }
+    final var pattern =
+        Pattern.compile(command.config().getString("libgen.generation.region-rect-regex"));
+    return Files.readAllLines(libraryTxt).stream()
+        .filter(line -> pattern.matcher(line).matches())
+        .collect(Collectors.toSet());
+  }
+
+  private String formatTileToRegionRect(final Tile tile) {
+    return String.format(REGION_RECT_FORMAT, tile.getLongitude(), tile.getLatitude());
   }
 
   private String buildExportDirective(final String exportName, final Path fileLocation) {
+    Verify.withErrorMessage("File to be used for export directive does not exist: %s", fileLocation)
+        .state(Files.exists(fileLocation));
     final var relativePath = libraryFolder.relativize(fileLocation).toString().replace('\\', '/');
     return String.format(EXPORT_DIRECTIVE, libraryPrefix, exportName, relativePath);
   }
@@ -251,7 +276,7 @@ public class LibraryGenerator {
       try {
         if (Files.exists(libraryFolder)) {
           LOG.debug("Deleting existing library at: {}", libraryFolder);
-          FileHelper.deleteRecursively(libraryFolder, Collections.emptySet());
+          FileHelper.deleteRecursively(libraryFolder);
         }
         createLibrary();
       } catch (IOException e) {
