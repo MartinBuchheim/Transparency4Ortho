@@ -52,7 +52,7 @@ public final class Transparency4Ortho implements Runnable {
 
   @CommandLine.Option(
       names = {"--regenerateLibrary"},
-      description = "Removes and re-creates the Transparency4Ortho library folder.")
+      description = "Removes and re-creates the Transparency4Ortho library folder, then exits.")
   private boolean regenerateLibraryMode;
 
   @CommandLine.Option(

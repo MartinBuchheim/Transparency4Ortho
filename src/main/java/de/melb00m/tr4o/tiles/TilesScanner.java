@@ -5,6 +5,7 @@ import de.melb00m.tr4o.exceptions.Exceptions;
 import de.melb00m.tr4o.helper.FileHelper;
 import de.melb00m.tr4o.helper.OutputHelper;
 import de.melb00m.tr4o.misc.Verify;
+import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -97,7 +98,7 @@ public class TilesScanner {
    * @return Result of the scan
    */
   public TilesScannerResult scanForOrthoScenery() {
-    final var orthoFolderToDsfMap = new HashMap<Path, Path>();
+    final var orthoFolderToDsfMap = new HashSetValuedHashMap<Path, Path>();
     final var orthoFolders =
         findOrthoDirectories(command.getOrthoSceneryPaths().orElse(sceneryDirectories));
 
