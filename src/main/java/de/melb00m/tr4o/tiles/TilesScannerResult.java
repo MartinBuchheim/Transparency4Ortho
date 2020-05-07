@@ -63,7 +63,7 @@ public class TilesScannerResult {
 
   private Set<Path> calcIntersectingOverlays() {
     return CollectionHelper.filterMapByKeys(
-            tileToOverlayDsfMap.get().asMap(), key -> getIntersectingTiles().contains(key))
+            tileToOverlayDsfMap.get().asMap(), key -> intersectingTiles.get().contains(key))
         .values().stream()
         .flatMap(Collection::stream)
         .collect(Collectors.toUnmodifiableSet());
@@ -106,8 +106,8 @@ public class TilesScannerResult {
    * @see #getIntersectingOverlayDsfs()
    * @return Intersecting tile names
    */
-  public Set<String> getIntersectingTiles() {
-    return intersectingTiles.get();
+  public Set<Tile> getIntersectingTiles() {
+    return intersectingTiles.get().stream().map(Tile::new).collect(Collectors.toSet());
   }
 
   /**
