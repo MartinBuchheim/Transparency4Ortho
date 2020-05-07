@@ -45,7 +45,7 @@ For example:
 ( Note that the quotation marks around the folder-names are a thing of the Windows CMD shell, not a syntax required by Transparency4Ortho. Other shells and operating systems do it differently. )
 
 ### Manual selection of overlays:
-Used like the automatic command above, but after the X-Plane folder specify any number of ortho-scenery folders you want to process. 
+Used like the automatic command above, but after the X-Plane folder specify any number of ortho-scenery folders you want to include. 
 
 `Transparency4Ortho <path-to-xplane> <path-to-ortho> [<path-to-more-ortho>...]`
 
@@ -53,38 +53,31 @@ For example:
 
 `Transparency4Ortho "E:\Games\X-Plane 11" "L:\Ortho4XP\Scenery\Tiles" "L:\Ortho4XP\Overlays\Forkboy US\yOrtho4XP_Arizona"`
 
-Note that you can also use a folder that contains multiple overlay-folders in it's file-structure below as a parameter - Transparency4Ortho will detect those. You can not, however, use only certain tiles inside an overlay-folder. In other words, if you have this structure:
+Note that you can also use a folder that contains multiple ortho-folders in it's file-structure below as a parameter - Transparency4Ortho will detect those. You can not, however, use only certain tiles inside an ortho-folder. In other words, if you have this structure:
 
-> ├───Forkboy US  
-> │   ├───yOrtho4XP_Arizona  
-> │   │   └───Earth nav data  
-> │   │       ├───+30-110  
-> │   │       └───+30-120  
-> │   ├───yOrtho4XP_California  
-> │   │   └───Earth nav data  
-> │   │       ├───+30-120  
-> │   │       ├───+30-130  
-> │   │       └───+40-130  
+> ├── Forkboy US  
+> │   ├── zCalifornia_v5  
+> │   │   ├── Earth nav data  
+> │   │   │   ├── +30-120  
+> │   │   │   ├── +30-130  
+> │   │   │   └── +40-130  
+> │   ├── zColorado_2015_1m  
+> │   │   ├── Earth nav data  
+> │   │   │   ├── +30-110  
+> │   │   │   └── +40-110  
 
-You **can** use `Forkboy US` (to include both) or just `Forkboy US/yOrtho4XP_Arizona` as a parameter, but you **can not** use `Forkboy US/yOrtho4XP_Arizona/Earth nav data/+30-110`.
 
-### Backups of modified overlays
-Transparency4Ortho will automatically create backups of overlays it modifies under `<X-Plane-Folder>/Transparency4Ortho/Backups/<date-time>/`. You can choose another folder using the `-b`-option, but you can not switch them off completely.
+You **can** use `Forkboy US` (to include both) or just `Forkboy US/zCalifornia_v5` as a parameter, but you **can not** use `Forkboy US/zCalifornia_v5/Earth nav data/+30-120`.
+
 
 ### Influencing the ortho auto-detection
 If Transparency4Ortho does not detect some ortho-tiles or scenery automatically, or if it detects folders that are actually not orthos, you can influence the behavior of the scanner by simply creating (empty) files inside those directories with specified names.
 
 #### Include a folder as ortho-scenery
-Create a file named `Transparency4Ortho.Ortho.Include` in the scenery-directory you want to include as ortho-scenery.
-
-#### Include a folder as ortho-overlay
-Create a file named `Transparency4Ortho.Overlay.Include` in the scenery-directory you want to include as ortho-overlay.
+Create a file named `Transparency4Ortho.Include` in the scenery-directory you want to include as ortho-scenery.
 
 #### Exclude a folder as ortho-scenery
-Create a file named `Transparency4Ortho.Ortho.Exclude` in the scenery-directory you want to exclude from the scan.
-
-#### Exclude a folder as ortho-overlay
-Create a file named `Transparency4Ortho.Overlay.Exclude` in the scenery-directory you want to exclude from the scan.
+Create a file named `Transparency4Ortho.Exclude` in the scenery-directory you want to exclude from the scan.
 
 ### Additional options
 Run `Transparency4Ortho --help` to see a list of commands. 
@@ -99,7 +92,7 @@ Before making a copy of the original roads-library from `X-Plane 11/Resources/de
 You can easily restore the original version of those files by re-running the X-Plane installer over your installation. That said, if you don't want to do that or still have problems after restoring (please let me know!), you can also skip this error and give it a shot. The relevant commands can be displayed using `Transparency4Ortho --help`.
 
 ## Does it run on Windows / Mac / Linux
-Transparency4Ortho is developed using Java, so it should run on all of these platforms. Transparency4Ortho relies on the `DSFTool` which is part of the official [X-Plane Developer Command-Line Tools](https://developer.x-plane.com/tools/xptools/). They are also available for these three platforms Transparency4Ortho will (attempt to) download them automatically.
+Transparency4Ortho is developed using Java, so it should run on all of these platforms. 
 
 ## Can I run it without installing Java?
 Currently not, but I am working on versions that bundle the necessary Java runtime for each platform. Currently you need to download a runtime of Java 11 (or higher) yourself. I recommend [AdoptOpenJDK](https://adoptopenjdk.net/).
@@ -108,14 +101,13 @@ Currently not, but I am working on versions that bundle the necessary Java runti
 Maybe, if there really is a demand for it.
 
 ## Can this destroy my scenery?
-First of all, this is an early release, so errors can happen - use it on your own risk. That said, the only modifying changes Transparency4Ortho makes to existing files in your X-Plane installation is to *overlays*, not to the ortho ground-scenery itself.
-Also, before any changes are made, a backup of the original overlay is created automatically under `X-Plane 11/Transparency4Ortho/Backups`. And you are free to create manual backups ahead of time as well, of course. I never had any problem with destroyed overlays whatsoever in my testing, even in the very first development runs.
+First of all, this is an early release, so errors can happen - use it on your own risk. That said, this tool does not change anything outside it's own directory under `X-Plane/Custom Scenery/Transparency4Ortho`, so nothing can really happen.
 
 ## Does it keep cars and trains visible?
 Yes, these remain visible and animated.
 
 ## How can I rebuild / restore the Transparency4Ortho library?
-Just run `Transparency4Ortho -r <path-to-xplane>`. This can also be useful after when a new version of Transparency4Ortho or X-Plane ships.
+Just run `Transparency4Ortho --regenerateLibrary <path-to-xplane>`. This can also be useful after when a new version of Transparency4Ortho or X-Plane ships.
 
 ## I think I found a bug!
 Great, please check if is [already reported](https://github.com/melb00m/Transparency4Ortho/issues) and if not, create a new one.
