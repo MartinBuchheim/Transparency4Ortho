@@ -11,7 +11,13 @@ Here's a screenshot of Queenstown ***without*** Transparency4Ortho applied:
 And here the scene ***with*** Transparency4Ortho: 
 ![Queenstown with Transparency4Ortho](https://i.imgur.com/6hpx5jt.jpg)
 
-[Here are more impressions from different areas of the world](https://imgur.com/a/AgfuG9n)
+Street lights will remain visible in the dark:
+![Malmö with Transparency4Ortho](https://i.imgur.com/UztkkLR.png)
+
+At transitions from tiles covered with ortho to those without - while never nice -, you can see that roads will still be drawn in tiles that are not covered with ortho-imagery:
+![Ortho Transition](https://i.imgur.com/FvrN0Cr.jpg)
+
+**[More impressions from around the world](https://imgur.com/a/AgfuG9n)**
 
 ## How does it work?
 The tool automates the following steps to achieve transparent roads:
@@ -25,7 +31,7 @@ The tool automates the following steps to achieve transparent roads:
 Currently, Transparency4Ortho is a command-line tool only, there is no graphical user interface (GUI). It uses Java and should work on Windows, Mac, and Linux - but I have only tested on Windows so far and need feedback for the other platforms.
 
 1. If you don't have a Java 11 runtime on your system, download and install one for your platform - for example from [AdoptOpenJDK](https://adoptopenjdk.net/?variant=openjdk11&jvmVariant=hotspot). 
-2. Download the latest *jar*-Release of Transparency4Ortho from the [Release-Page](https://github.com/melb00m/Transparency4Ortho/releases).
+2. Download the latest (non-source) release of Transparency4Ortho from the [Release-Page](https://github.com/melb00m/Transparency4Ortho/releases).
 3. Extract the file to any location (doesn't need to be in the X-Plane folder - in fact, I would choose a different place).
 4. As this is a command-line based tool, you need to open a shell to use it. In Windows, the easiest way to achieve that is to navigate to the folder into which you unzipped Transparency4Ortho in the Explorer, and then navigate to the `bin` folder inside of that one - you should see two `Transparency4Ortho` files in there. Now click on the location bar in Explorer and simply type `cmd` - this will open the CMD-shell in this folder.
 5. Type `Transparency4Ortho --help` - you should see an overview of parameters and options to use with the tool. If everything is fine so far, move on to the usage instructions below.
@@ -40,7 +46,7 @@ Simply run the command below and follow the instructions on the screen:
 
 For example: 
 
-`Transparency4Ortho "E:\Games\X-Plane 11"`) 
+`Transparency4Ortho "E:\Games\X-Plane 11"`
 
 ( Note that the quotation marks around the folder-names are a thing of the Windows CMD shell, not a syntax required by Transparency4Ortho. Other shells and operating systems do it differently. )
 
