@@ -156,9 +156,10 @@ public class LibraryGenerator {
       return;
     }
     LOG.info("Applying modifications for transparent roads");
-    final var uncommentStartingWith =
-        command.config().getStringList("libgen.modifications.roads.uncomment.lines-starting-with")
+    final var uncommentPatterns =
+        command.config().getStringList("libgen.modifications.roads.uncomment.lines-matching")
             .stream()
+            .map(Pattern::compile)
             .collect(Collectors.toUnmodifiableSet());
     final var groupPattern =
         Pattern.compile(
@@ -184,7 +185,7 @@ public class LibraryGenerator {
             uncommentEnabledBlock = uncommentEnabledGroups.contains(groupName);
           }
           final var uncomment =
-              uncommentEnabledBlock && uncommentStartingWith.stream().anyMatch(line::startsWith);
+              uncommentEnabledBlock && uncommentPatterns.stream().anyMatch(pattern -> pattern.matcher(line).matches());
           final var newLine = uncomment ? String.format("#(Transparency4Ortho) %s", line) : line;
           if (uncomment) {
             LOG.trace(
@@ -209,7 +210,6 @@ public class LibraryGenerator {
    *
    * @param tiles Tiles for which to use the modded road networks
    * @param removeExistingEntries Keep existing definitions intact
-   * @throws IOException I/O Exception
    */
   public void generateLibraryTxt(
       final Collection<Tile> tiles, final boolean removeExistingEntries) {
