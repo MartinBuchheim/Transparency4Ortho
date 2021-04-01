@@ -88,6 +88,9 @@ Create a file named `Transparency4Ortho.Exclude` in the scenery-directory you wa
 ### Additional options
 Run `Transparency4Ortho --help` to see a list of commands. 
 
+## Uninstall instructions
+Simply remove the `Transparency4Ortho` folder under `<X-Plane>/Custom Scenery`.
+
 # FAQ
 ## Which versions of X-Plane are supported?
 I have currently tested X-Plane 11.41 as well as 11.50b6 with Vulkan.
